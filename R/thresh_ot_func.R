@@ -1,3 +1,134 @@
+library(ggplot2)
+
+#' @title true_2Dnorm_UOT_map
+#' @description Compute true unbalanced optimal transport map for 2D normal marginals
+#' @param a mean of normal distribution 0
+#' @param b mean of normal distribution 1
+#' @param A covariance matrix of normal distribution 0
+#' @param B covariance matrix of normal distribution 1
+#' @param reg regularization parameter for the joint penalty
+#' @param reg_marg regularization parameter for the marginal penalty
+true_2Dnorm_UOT_map = function(a,b,A,B, reg, reg_marg, d=2){
+  sigma2 = reg/2
+  gamma = reg_marg
+  lambda = sigma2 + gamma/2
+  tau = gamma/(2*sigma2+gamma)
+  Id = diag(rep(1,d))
+  X = A + B + lambda * Id
+  X_inv = chol2inv(chol(X))
+  A_tilde = gamma/2*(Id - lambda*chol2inv(chol(A+lambda*Id)))
+  B_tilde = gamma/2*(Id - lambda*chol2inv(chol(B+lambda*Id)))
+  C_temp = 1/tau * A_tilde %*% B_tilde + sigma2^2/4*Id
+  C = expm::sqrtm(C_temp) - sigma2/2*Id
+  
+  mu = rbind(a + A %*% X_inv %*%(b-a), b - B %*% X_inv %*%(b-a))
+  Id_C_lambda = Id + C/lambda
+  H = rbind( cbind( Id_C_lambda %*% (A-A%*%X_inv%*%A), C + Id_C_lambda %*% A %*% X_inv %*% B),
+             cbind( t(C) + t(Id_C_lambda)%*%B%*%X_inv%*%A, Id_C_lambda%*%( B - B%*% X_inv%*% B ) ) )
+  m_pi = sigma2^(d/2*sigma2/gamma+sigma2)
+  m_pi = m_pi * det(C) * sqrt(det(A_tilde%*%B_tilde)^tau/det(A%*%B))^(1/(tau+1))
+  m_pi = m_pi * exp(-1/2*sum(-t(b-a)%*%X_inv%*%(b-a))/(tau+1))
+  m_pi = m_pi * sqrt(det(C - 2/gamma*A_tilde%*%B_tilde))
+  
+  return(list(mu = mu, H = H, m_pi = m_pi))
+}
+
+#' @title title hist_to_dist
+#' @description Compute empirical distribution from histogram
+#' @param X observed sample points
+hist_to_dist = function( X, plot=T, n_bins = 100){
+  # Step 2: Define the bin boundaries for the 2D grid
+  x_bins <- seq(min(X[,1]), max(X[,1]), length.out = n_bins) # Example bin boundaries for x
+  y_bins <- seq(min(X[,2]), max(X[,2]), length.out = n_bins) # Example bin boundaries for y
+  
+  # Step 3: Calculate the center of each bin
+  x_centers <- (x_bins[-length(x_bins)] + x_bins[-1]) / 2
+  y_centers <- (y_bins[-length(y_bins)] + y_bins[-1]) / 2
+  
+  # Step 4: Count the number of sample points falling into each bin
+  
+  # x_hist = hist(X[,1], breaks = x_bins, plot = F)
+  x_hist$counts
+  counts <- table(
+    cut(X[,1], breaks = x_bins, include.lowest = TRUE),
+    cut(X[,2], breaks = y_bins, include.lowest = TRUE)
+  )
+  
+  # Convert the table to a data frame
+  counts_df <- as.data.frame(counts)
+  colnames(counts_df) <- c("x_bin", "y_bin", "Count")
+  
+  # Convert bin levels to numeric centers
+  counts_df$x_center <- x_centers[as.numeric(counts_df$x_bin)]
+  counts_df$y_center <- y_centers[as.numeric(counts_df$y_bin)]
+  
+  # Step 5: Normalize these counts to obtain the empirical distribution
+  total_samples <- sum(counts_df$Count)
+  counts_df$Probability <- counts_df$Count / total_samples
+  
+  
+
+  # Step 6: Visualize the empirical distribution using a heatmap
+  if(plot){
+    p <- ggplot(counts_df, aes(x = x_center, y = y_center, fill = Probability)) +
+      geom_tile() +
+      scale_fill_gradient(low = "white", high = "blue") +
+      labs(title = "Empirical Distribution Heatmap", x = "X Center", y = "Y Center") +
+      theme_minimal()
+    
+    print(p)
+  }
+  
+  
+  
+  return(counts_df)
+}
+
+UNormal_density = function(X, mu, Sigma, m_pi){
+  d = ncol(X)
+  Sigma_inv = chol2inv(chol(Sigma))
+  
+  single_density = function(X, mu, Sigma, Sigma_inv, m_pi){
+    return(1/sqrt((2*pi)^d*det(Sigma)) * exp(-1/2*t(X-mu)%*%Sigma_inv%*%(X-mu)) * m_pi)
+  }
+  # return(1/sqrt((2*pi)^d*det(Sigma)) * exp(-1/2*rowSums((X-mu)%*%Sigma_inv*(X-mu))) * m_pi)
+  return(apply(X, 1, function(x) single_density(x, mu, Sigma, Sigma_inv, m_pi)))
+  
+}
+
+
+# # test
+# X_test = X[1:2,]
+# mu_test = c(1,2)
+# Sigma_test = matrix(c(1,0.5,0.5,1),2,2)
+# Sigma_inv_test = chol2inv(chol(Sigma_test))
+# m_pi_test = 1
+# UNormal_density(X_test, mu_test, Sigma_test, m_pi_test)
+# 
+# UNormal_density(t(X_test[1,]), mu_test, Sigma_test, m_pi_test)
+# UNormal_density(t(X_test[2,]), mu_test, Sigma_test, m_pi_test)
+# 
+# X_in = X_test[2,]
+# 1/sqrt((2*pi)^d*det(Sigma_test)) * exp(-1/2*t(X_in-mu_test)%*%Sigma_inv_test%*%(X_in-mu_test)) * m_pi_test
+
+# Function to combine rows of two matrices
+combine_rows <- function(mat1, mat2) {
+  n1 <- nrow(mat1)
+  n2 <- nrow(mat2)
+  result <- matrix(0, nrow = n1 * n2, ncol = ncol(mat1) + ncol(mat2))
+  
+  row_idx <- 1
+  for (i in 1:n1) {
+    for (j in 1:n2) {
+      result[row_idx, ] <- c(mat1[i, ], mat2[j, ])
+      row_idx <- row_idx + 1
+    }
+  }
+  
+  return(result)
+}
+
+
 get_ot_knn = function(x,y,k=3){
   if(length(x)!=length(y)){
     print("Error: length does not match")

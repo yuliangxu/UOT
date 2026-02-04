@@ -3,15 +3,21 @@ library(reticulate)
 source("./R/thresh_ot_func.R")
 use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
 source_python("./python/sinkhorn_unbalanced_tv.py")
-sim = 200
+# sim = 100
 n0 = 100*sim
 n1 = 10*sim
-d = 10
+# d = 10
 n = n1 + n0
-n_rep = 50
+n_rep = 100
+# n_rep = 1
 
 linear_bool = T
-# covariate_case = 4
+# covariate_case = 2
+
+# what has worked:
+# d = 6, sim = 50, case = 2, penalty = 1e-3/4
+# d = 8, sim = 50, case = 2, penalty = 1e-3/4
+# d = 10, sim = 50, case = 2, penalty = 1e-3/4
 
 Y0_est = array(0,c(n1,3,n_rep)) # ot, knn truth
 Y1_est = array(0,c(n0,3,n_rep))
@@ -34,10 +40,10 @@ for(iter in 1:n_rep){
   # case 1 (less overlap)
   if(covariate_case == 1){
     X = matrix(NA,nrow = n, ncol = d)
-    X[idx0,] = rbind(matrix(rnorm(n0/2*d, mean = -1, sd = 2),ncol = d),
-                     matrix(rnorm(n0/2*d, mean = -1, sd = 1),ncol = d))
-    X[idx1,] = rbind(matrix(rnorm(n1/2*d, mean = 1, sd = 2),ncol = d),
-                     matrix(rnorm(n1/2*d, mean = 1, sd = 1),ncol = d))
+    X[idx0,] = rbind(matrix(rnorm(n0/2*d, mean = -1, sd = 2/sqrt(d)),ncol = d),
+                     matrix(rnorm(n0/2*d, mean = -1, sd = 1/sqrt(d)),ncol = d))
+    X[idx1,] = rbind(matrix(rnorm(n1/2*d, mean = 1, sd = 2/sqrt(d)),ncol = d),
+                     matrix(rnorm(n1/2*d, mean = 1, sd = 1/sqrt(d)),ncol = d))
     # par(mfrow = c(1,2))
     # plot_cov(X,idx0,idx1,main="case 1 (less overlap)")
   }
@@ -51,7 +57,7 @@ for(iter in 1:n_rep){
     X[idx1,] = rbind(matrix(rnorm(n1/2*d, mean = 1/2, sd = 0.5),ncol = d),
                      matrix(rnorm(n1/2*d, mean = -1/2, sd = 0.5),ncol = d))
     # par(mfrow = c(1,1))
-    plot_cov(X,idx0,idx1,main="case 2 (more overlap)")
+    # plot_cov(X,idx0,idx1,main="case 2 (more overlap)")
   }
   
   # case 3 (disc x conti: less overlap)
@@ -83,7 +89,45 @@ for(iter in 1:n_rep){
   
   
   Y = rep(NA,n)
+  # 6d
+  if(d == 6){
+    if(linear_bool){
+      Y0_all = -1 - apply(X[,1:3],1,sum) * apply(X[,4:6],1,sum) + 
+        apply(X[,2:5],1,mean)+X[,4] + rnorm(n,sd = 1)
+      Y1_all = 2 + 2*apply(X[,1:3],1,sum) + apply(X[,4:6],1,sum) +
+        apply(X[,2:5],1,mean) - X[,4] + rnorm(n,sd = .5)
+      # par(mfrow = c(2,3))
+      # hist(Y1_all);hist(Y1_all[idx1]);hist(Y1_all[idx0]);
+      # hist(Y0_all);hist(Y0_all[idx1]);hist(Y0_all[idx0]);
+      # par(mfrow = c(1,1))
+      # mean(Y1_all) - mean(Y0_all)
+    }else{
+      # nonlinear
+      Y0_all = log((apply(X[,1:3],1,sum) +apply(X[,4:6],1,sum) )^2 + 0.5*exp(-X[,2]/10)) + rnorm(n,sd = 1)
+      Y1_all = log(10+ exp(1-apply(X[,1:3],1,sum) - apply(X[,4:6],1,sum))) + rnorm(n,sd = .5)
+    }
+    
+  }
   
+  # 8d
+  if(d == 8){
+    if(linear_bool){
+      Y0_all = -1 - apply(X[,1:4],1,sum) * apply(X[,5:8],1,sum) + 
+        apply(X[,2:5],1,mean)+X[,4] + rnorm(n,sd = 1)
+      Y1_all = 2 + 2*apply(X[,1:4],1,sum) + apply(X[,5:8],1,sum) +
+        apply(X[,2:5],1,mean) - X[,4] + rnorm(n,sd = .5)
+      # par(mfrow = c(2,3))
+      # hist(Y1_all);hist(Y1_all[idx1]);hist(Y1_all[idx0]);
+      # hist(Y0_all);hist(Y0_all[idx1]);hist(Y0_all[idx0]);
+      # par(mfrow = c(1,1))
+      # mean(Y1_all) - mean(Y0_all)
+    }else{
+      # nonlinear
+      Y0_all = log((apply(X[,1:3],1,sum) +apply(X[,4:6],1,sum) )^2 + 0.5*exp(-X[,2]/10)) + rnorm(n,sd = 1)
+      Y1_all = log(10+ exp(1-apply(X[,1:3],1,sum) - apply(X[,4:6],1,sum))) + rnorm(n,sd = .5)
+    }
+    
+  }
   
   # 10d
   if(d == 10){
@@ -187,19 +231,25 @@ for(iter in 1:n_rep){
   # OT
   ot <- import("ot")
   if(d>4){
-    reg_m_kl = 1e-3/2
-    reg = 1e-3/2
+    # 1e-3/2 for LargeN3 (KNN1=TV), 1e-3/4 for largeN2(OT=TV)
+    # 1e-3/3 for LargeN4 (KNN1=TV)
+    # go with LargeN2 result: removes more outliers
+    reg_m_kl = 1e-3/6
+    reg = 1e-3/6
     maxiter = 2000
+    G_ub_tv = sinkhorn_knopp_unbalanced_tv(a1, a0, M, reg, reg_m_kl,if_tv = 1,numItermax=as.integer(maxiter))
+    summary(apply(G_ub_tv,1,sum))
+    table(apply(G_ub_tv,1,sum)==0)
+    ubG = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl, div='kl',numItermax=as.integer(maxiter))
+    summary(apply(ubG,1,sum))
+    table(apply(ubG,1,sum)==0)
   }else{
     reg_m_kl = 1e-3/5
     reg = 1e-3/5
     maxiter = 2000
   }
-  # G_ub_tv = sinkhorn_knopp_unbalanced_tv(a1, a0, M, reg, reg_m_kl,if_tv = 1,numItermax=as.integer(maxiter))
-  # summary(apply(G_ub_tv,1,sum))
   
   ubG = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl, div='kl',numItermax=as.integer(maxiter))
-  # summary(apply(ubG,1,sum))
   Y0_ot = rep(NA,n)
   Y0_ot[idx0] = Y0
   Y0_ot[idx1] = (ubG %*% Y0) / apply(ubG,1,sum)
@@ -220,8 +270,9 @@ for(iter in 1:n_rep){
   # Y1_marg = apply(ubG,1,sum)/sum(ubG)
   Y1_tv[idx1] = Y1
   
+  
   # OT-tvow
-  if(d==10){
+  if(d>4){
     Y0_tvow = Y0_tv;Y1_tvow = Y1_tv;
   }
   if(d %in% c(2,3,4)){
@@ -386,12 +437,14 @@ for(iter in 1:n_rep){
 
 # saveRDS(list(ATE = output_all), paste("./sim/sim_all2_n1",n1, "_n0", n0,"_case",
 #                                       covariate_case,"_d",d,".rds",sep=""))
-
+# df = as.data.frame(cbind(output_all[1:11]-output_all[12], output_all[1:11]))
+# rownames(df ) = label[1:11]
+# df
 
 n_method = dim(output_all)[2]-1
 bias = abs(apply(output_all[,1:n_method]-output_all[,n_method+1], 2,mean))
 MSE = apply(output_all[,1:n_method]-output_all[,n_method+1], 2,function(x){mean(x^2)})
 VAR = apply(output_all[,1:n_method], 2,function(x){mean((x-mean(x))^2)})
 
-result = cbind(bias,VAR, MSE)
-result[order(MSE),]
+# result = cbind(bias,VAR, MSE)
+# result[order(MSE),]
