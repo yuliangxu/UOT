@@ -13,7 +13,7 @@ Florian Gunsilius and Yuliang Xu
 - `./simulation/`  
   Code to reproduce simulation results in Section 4 (ET submission version).
 
-## Main scripts
+### Other scripts
 
 - `analyze_allATO.R`  
   Runs the simulation code for the earlier arXiv version of the paper (Case 1: 2D covariates + linear outcome):  
