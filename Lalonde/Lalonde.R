@@ -171,10 +171,10 @@ for(reg in reg_lsit){
 cbind(rho = rho_list, eps = eps_list ,H_sum=H_sum, median_matched_controls = median_matched_controls,UOT_att = UOT_att_list)
 
 
-overlap_hist(nsw_t[[chosen_cov]], nsw_c[[chosen_cov]],  X0_matched_original[[chosen_cov]],
-             labels = c(paste0(chosen_cov,":Treatment1"), "NSW control", "UOT_matched control"),
-             normalize = "density",
-             add_density = TRUE, bins=40)
+# overlap_hist(nsw_t[[chosen_cov]], nsw_c[[chosen_cov]],  X0_matched_original[[chosen_cov]],
+#              labels = c(paste0(chosen_cov,":Treatment1"), "NSW control", "UOT_matched control"),
+#              normalize = "density",
+#              add_density = TRUE, bins=40)
 
 
 
@@ -244,11 +244,13 @@ ATT_diff <- function(y, t, w) {
 
 # Propensity score nearest neighbor
 m_nearest <- matchit(treat ~ age + educ + black + hisp + married + nodegree + re75,
-                     caliper = 0.1,
+                     caliper = 1e-5,
                      data = df_obs, method = "nearest")
 
 d_nearest <- match.data(m_nearest)
 ATT_nearest <- with(d_nearest, mean(re78[treat == 1]) - mean(re78[treat == 0])); ATT_nearest
+with(d_nearest, weighted.mean(re78[treat==1], weights[treat==1]) -
+       weighted.mean(re78[treat==0], weights[treat==0]))
 
 # Covariate Balancing Propensity Score (CBPS)
 cbps_fit <- CBPS(treat ~ age + educ + black + hisp + married + nodegree + re75,
@@ -266,7 +268,7 @@ ATT_maha <- with(d_maha, mean(re78[treat == 1]) - mean(re78[treat == 0])); ATT_m
 # Stable Balancing Weights (SBW)
 res_sbw <- sbw_att(dat = df_obs, ind = "treat", out = "re78", covars = covars,
                    bal_std = "target",
-                   bal_tol = 0.02, bal_alg = FALSE)
+                   bal_tol = 1e-5, bal_alg = FALSE)
 
 res_sbw$att  
 
@@ -276,11 +278,22 @@ w_glm <- weightit(treat ~ age + educ + black + hisp + married + nodegree + re75,
                   data = df_obs, method = "glm", estimand = "ATE")  # logistic PS
 ps <- w_glm$ps
 w_overlap <- with(df_obs, ps * (1 - ps))
+
+d <- df_obs
+with(d,
+     weighted.mean(re78[treat==1], w_overlap[treat==1]) -
+       weighted.mean(re78[treat==0], w_overlap[treat==0])
+)
+
+
+
 w_overlap[df_obs$treat == 1] <- w_overlap[df_obs$treat == 1] / sum(w_overlap[df_obs$treat == 1])
 w_overlap[df_obs$treat == 0] <- w_overlap[df_obs$treat == 0] / sum(w_overlap[df_obs$treat == 0])
 
 ATT_overlap <-ATT_diff(df_obs$re78, df_obs$treat, w_overlap)
 ATT_overlap
+
+
 
 
 # summarize in a table

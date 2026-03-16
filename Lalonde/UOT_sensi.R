@@ -155,7 +155,10 @@ row.names(summary_table) <- NULL
 summary_table <- summary_table[order(summary_table$H_sum), ]
 
 summary_table
-# -------- 5) visualize (median_matched_controls)
+
+## ========= 5) visualization ========= 
+
+# --------  visualize (median_matched_controls)
 library(dplyr)
 library(ggplot2)
 summary_table$median_matched_controls = factor(summary_table$median_matched_controls)
@@ -216,7 +219,7 @@ ggplot(summary_table, aes(x = factor(rho), y = factor(eps), fill = UOT_att)) +
   theme_minimal(base_size = 13) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# --- plot compare to ATT_exp
+# --- plot compare to ATT_exp 
 library(dplyr)
 library(ggplot2)
 
@@ -236,6 +239,25 @@ tol <- 1e-10   # relax if needed, e.g. 1e-8
 best_rows <- df %>%
   filter(abs(err - min_err) <= tol)
 
+corners <- df %>%
+  mutate(
+    rho_num = as.numeric(as.character(rho_f)),
+    eps_num = as.numeric(as.character(eps_f))
+  ) %>%
+  filter(
+    rho_num %in% range(rho_num, na.rm = TRUE),
+    eps_num %in% range(eps_num, na.rm = TRUE)
+  ) %>%
+  distinct(rho_f, eps_f, .keep_all = TRUE)
+
+top_right <- corners %>%
+  mutate(
+    rho_num = as.numeric(as.character(rho_f)),
+    eps_num = as.numeric(as.character(eps_f))
+  ) %>%
+  filter(rho_num == max(rho_num, na.rm = TRUE),
+         eps_num == max(eps_num, na.rm = TRUE))
+
 ggplot(df, aes(x = rho_f, y = eps_f, fill = UOT_att)) +
   geom_tile() +
   scale_fill_gradient2(
@@ -245,7 +267,6 @@ ggplot(df, aes(x = rho_f, y = eps_f, fill = UOT_att)) +
     midpoint = 0,
     name = "UOT_att"
   ) +
-  # highlight exactly one tile
   geom_tile(
     data = best_rows,
     aes(x = rho_f, y = eps_f),
@@ -256,6 +277,20 @@ ggplot(df, aes(x = rho_f, y = eps_f, fill = UOT_att)) +
     data = best_rows,
     aes(x = rho_f, y = eps_f, label = sprintf("≈%.1f", UOT_att)),
     color = "red", fontface = "bold", size = 3,
+    inherit.aes = FALSE
+  ) +
+  # all corners in black
+  geom_text(
+    data = corners,
+    aes(x = rho_f, y = eps_f, label = sprintf("%.2f", UOT_att)),
+    color = "black", fontface = "bold", size = 3,
+    inherit.aes = FALSE
+  ) +
+  # top-right corner in white (overrides the black one visually)
+  geom_text(
+    data = top_right,
+    aes(x = rho_f, y = eps_f, label = sprintf("%.2f", UOT_att)),
+    color = "white", fontface = "bold", size = 3,
     inherit.aes = FALSE
   ) +
   labs(

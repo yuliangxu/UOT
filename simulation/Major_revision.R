@@ -6,7 +6,10 @@ library(reticulate)
 use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
 source_python("./python/sinkhorn_unbalanced_tv.py")
 # Normal case -------------------------------------------------------------
+# rng_state <- .Random.seed
+# saveRDS(rng_state, "rng_state.rds")
 
+.Random.seed <- readRDS("rng_state.rds")
 # create 2D normal array
 d=2
 n_sim = 100
@@ -17,7 +20,7 @@ idx0 = sort(sample(1:n,n0))
 idx = rep(1,n)
 idx[idx0] = 0
 idx1 = which(idx == 1)
-
+# set.seed(2025)
 
 # ----------- generate sample  ----------- #
 
