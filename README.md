@@ -8,6 +8,9 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
   Main synthetic experiments and revision scripts.
   `Major_revision.R` contains the Gaussian UOT examples and moment comparisons.
   `MR_*.R`, `One_Rep_*.R`, and `Subsampling_method.R` contain additional simulation workflows.
+  `simulation/ET_round2/` contains the revised Gaussian UOT CLT experiment,
+  including a validated shard/merge runner and SLURM instructions for the
+  10,000-replication HPC study.
 
 - `Lalonde/`
   Empirical treatment-effect scripts based on the Lalonde / NSW / PSID data.
@@ -61,6 +64,14 @@ Rscript Lalonde/Lalonde.R
 Rscript Lalonde/UOT_sensi.R
 Rscript ACS/ACS1_preprocess_data.R
 Rscript simulation/Major_revision.R
+```
+
+For the revised CLT experiment and its HPC workflow, see
+[`simulation/ET_round2/README.md`](simulation/ET_round2/README.md). Start with
+the environment preflight:
+
+```bash
+Rscript --vanilla simulation/ET_round2/CLT_gaussian_hpc.R --mode=preflight
 ```
 
 For the older simulation pipeline:
