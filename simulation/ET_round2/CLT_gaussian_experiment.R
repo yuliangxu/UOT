@@ -31,10 +31,10 @@ parse_arguments <- function(args) {
     reps = as.integer(value_after_equals("--reps", "2000")),
     seed = as.integer(value_after_equals("--seed", "20260814")),
     output_dir = value_after_equals(
-      "--output-dir", "simulation/ET_round2/result"
+      "--output-dir", "/cwork/yx306/UOT/out/clt-gaussian-10000/result"
     ),
     plot_dir = value_after_equals(
-      "--plot-dir", "simulation/ET_round2/plot"
+      "--plot-dir", "/cwork/yx306/UOT/out/clt-gaussian-10000/plot"
     )
   )
 }

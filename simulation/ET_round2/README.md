@@ -7,9 +7,17 @@ scheduler-safe runner for a larger Monte Carlo study.
   creates the result tables and plots.
 - `CLT_gaussian_hpc.R` runs independent immutable shards, validates and
   merges them, and is safe to use with a scheduler array.
+- `CLT_gaussian_summary.R` validates completed shards and creates compact
+  CSV/RDS summaries, a Markdown report, and diagnostic figures without
+  rerunning the simulation.
 - `CLT_gaussian_experiment.md` describes the experiment and interprets the
   current plots.
 - `CLT_gaussian_hpc.slurm` is a SLURM array-job template.
+- `CLT_gaussian_small_n_hpc.R` and `.slurm` add evaluation-only runs at
+  `n=10,20` without recomputing the existing larger sample sizes or reference.
+- `CLT_gaussian_small_n_summary.R` combines both immutable runs and creates a
+  relative Frobenius-distance plot with an empirical Monte Carlo uncertainty
+  band calibrated from the independent `n=500` null-control draws.
 
 Generated `result/` and `plot/` directories are intentionally ignored by
 Git. Run every command below from the repository root.
@@ -46,6 +54,7 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
+export PATH=/opt/apps/rhel9/R-4.4.3/bin:$PATH
 
 Rscript --vanilla simulation/ET_round2/CLT_gaussian_hpc.R --mode=preflight
 ```
@@ -97,9 +106,10 @@ variables:
 mkdir -p /cwork/yx306/UOT/out
 
 # These defaults are already in the template; override them if needed.
-export REPO_ROOT=/hpc/home/yx306/UOT
+export REPO_ROOT=/hpc/home/yx306/OT/UOT
+export R_BIN=/opt/apps/rhel9/R-4.4.3/bin
 export VENV_PYTHON=/hpc/home/yx306/venvs/uot/bin/python
-export CLT_RUN_ROOT=/cwork/yx306/UOT/clt-gaussian-10000
+export CLT_RUN_ROOT=/cwork/yx306/UOT/out/clt-gaussian-10000
 export CLT_SHARD_DIR="$CLT_RUN_ROOT/shards"
 export CLT_RESULT_DIR="$CLT_RUN_ROOT/result"
 export CLT_PLOT_DIR="$CLT_RUN_ROOT/plot"
@@ -117,9 +127,10 @@ sbatch --array=1-100 simulation/ET_round2/CLT_gaussian_hpc.slurm
 The template uses the `mastatlab` partition/account, 8 GB of memory, one CPU,
 and no GPU. POT is CPU-based here, and each task explicitly limits BLAS and
 OpenMP to one thread. Adjust the 24-hour limit after timing the smoke run if
-your cluster requires a different request. The `/cwork/yx306/UOT/out`
-directory must exist before `sbatch`, because SLURM opens its log files before
-the script starts.
+your cluster requires a different request. In this configuration all
+production logs, shards, merged RDS/CSV outputs, and PDF plots are under
+`/cwork/yx306/UOT/out`. That directory must exist before `sbatch`, because
+SLURM opens its log files before the script starts.
 
 After every array task succeeds, merge once. Merge validates all inputs and
 then automatically invokes the ordinary analysis to create metadata, the
@@ -136,6 +147,80 @@ Merge mode fails without modifying the canonical checkpoints if a shard is
 missing, incompatible, nonconverged, or has an incorrect job/seed set. Keep
 the shard files and the generated merge manifest until the analysis is
 archived.
+
+To summarize a completed production run directly from its immutable shards,
+without creating the canonical merged checkpoints, run:
+
+```bash
+Rscript --vanilla simulation/ET_round2/CLT_gaussian_summary.R \
+  --reps=10000 --rep-start=1 --num-shards=100 \
+  --shard-dir="$CLT_SHARD_DIR" --output-dir="$CLT_RESULT_DIR" \
+  --plot-dir="$CLT_PLOT_DIR"
+```
+
+The summary driver validates the complete design and disjoint seed streams
+before writing its report, tables, covariance summary, and seven PDF figures.
+Its output and plot directories are restricted to `/cwork/yx306/UOT/out`.
+
+### Small-sample extension
+
+To add 10,000 replications only at `n=10,20`, preflight and submit the
+evaluation-only array:
+
+```bash
+export CLT_SMALL_N_SHARD_DIR="$CLT_RUN_ROOT/small-n-shards"
+
+Rscript --vanilla simulation/ET_round2/CLT_gaussian_small_n_hpc.R \
+  --mode=preflight --shard-dir="$CLT_SMALL_N_SHARD_DIR"
+
+sbatch --array=1-100 simulation/ET_round2/CLT_gaussian_small_n_hpc.slurm
+```
+
+After all 100 tasks finish, validate and combine the new sample sizes with the
+existing run:
+
+```bash
+Rscript --vanilla simulation/ET_round2/CLT_gaussian_small_n_summary.R \
+  --reps=10000 --num-shards=100 \
+  --base-shard-dir="$CLT_SHARD_DIR" \
+  --small-n-shard-dir="$CLT_SMALL_N_SHARD_DIR" \
+  --output-dir="$CLT_RESULT_DIR" --plot-dir="$CLT_PLOT_DIR"
+```
+
+The combined design is `n={10,20,50,100,200,500}` with 10,000 evaluation
+replications per sample size and the original independent 10,000-run reference
+at `n=500`. The uncertainty band uses 50 independent null blocks of size 400,
+scaled to the 10,000-replication covariance comparison. It is an empirical
+Monte Carlo diagnostic rather than a formal confidence interval.
+
+To extend the complete six-size design from 10,000 to 100,000 replications,
+run only IDs 10,001--100,000 in both worker arrays:
+
+```bash
+export CLT_REPS=100000
+export CLT_REP_START=10001
+export CLT_NUM_SHARDS=100
+
+sbatch --array=1-100 simulation/ET_round2/CLT_gaussian_hpc.slurm
+sbatch --array=1-100 simulation/ET_round2/CLT_gaussian_small_n_hpc.slurm
+```
+
+After both arrays complete, combine the base and continuation shard sets:
+
+```bash
+Rscript --vanilla simulation/ET_round2/CLT_gaussian_small_n_summary.R \
+  --reps=100000 --base-reps=10000 \
+  --base-num-shards=100 --extension-num-shards=100 \
+  --extension-rep-start=10001 \
+  --base-shard-dir="$CLT_SHARD_DIR" \
+  --small-n-shard-dir="$CLT_SMALL_N_SHARD_DIR" \
+  --output-dir="$CLT_RESULT_DIR" --plot-dir="$CLT_PLOT_DIR" \
+  --mc-block-size=2000
+```
+
+The 100,000-run uncertainty calibration uses 100 independent `n=500` null
+blocks of size 2,000. Base and continuation shards are validated separately
+before their exact replication-ID ranges are combined.
 
 ### Reuse the completed 2,000 replications
 
