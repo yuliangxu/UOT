@@ -13,3 +13,8 @@ __pycache__/
 # Resume files for the Figure 1 simulation
 simulation/ET_round2/figure1/*_checkpoint.rds
 simulation/ET_round2/figure1/*_metadata.rds
+
+# Gaussian UOT fit checkpoints and immutable shard directories
+clt_gaussian_all_projections*_checkpoint.rds
+clt_gaussian_all_projections*_R*_from*_S*/
+clt_gaussian_small_n_R*_from*_S*/

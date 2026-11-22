@@ -77,6 +77,24 @@ replication IDs, uniqueness and separation of the seed streams, finite
 integrals, and solver convergence. The previous six-size summary, report,
 covariance-distance PDF/CSV, and calibration RDS are also generated.
 
+### Production verification
+
+The archived run retained its PDFs and numerical summaries. We regenerated its
+missing shards with the original workers and seed streams, then rendered all
+five published PDFs and the CSV from a fresh checkout. All six evaluation sizes
+had 100,000 successful fits each. The independent reference had 100,000 at
+$n=500$. All 700,000 seeds were distinct and every fit had 197 finite integrals.
+The six covariance distances and Monte Carlo classifications matched the archive.
+
+A separate calculation from evaluation IDs 1–3,000 reproduced all 30 published
+JB statistics and all 30 Holm-adjusted p-values at their displayed precision.
+The Q–Q PDF contains all 100,000 order statistics in each of its 30 panels.
+A second end-to-end run on the same six sample sizes produced the five
+`R4` PDFs, `jarque_bera_first4.csv`, and the original covariance-distance plot.
+
+The verified fit environment used R 4.4.3, MASS 7.3-65, ggplot2 4.0.2,
+reticulate 1.45.0, Python 3.9, and the POT, NumPy, and SciPy versions below.
+
 ## Software environment
 
 The R requirements are `MASS`, `ggplot2`, and `reticulate`. The selected
