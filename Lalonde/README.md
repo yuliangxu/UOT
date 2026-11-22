@@ -21,9 +21,9 @@ The full Table 1 command recomputes the grid and both figures, fits the comparis
 
 ## Results
 
-- [Table 1](results/table1.csv) uses the grid point that minimizes the absolute difference between the UOT contrast and the observed experimental contrast. The selected estimate is **$872.75** at ε = 0.000268 and ρ = 0.0001. The benchmark is **$886.30**. This is a retrospective selection using the experimental outcome.
+- [Table 1](results/table1.csv) uses the grid point that minimizes the absolute difference between the UOT-weighted ATT estimate and the experimental ATT estimate. The selected estimate is **$872.75** at ε = 0.000268 and ρ = 0.0001. The benchmark is **$886.30**. This is a retrospective selection using the experimental outcome.
 - [Figure 4](results/UOT_matched_pairs_sensi.png) shows matching concentration. For each treated participant, controls are ranked by pair weight. The figure reports the median number needed to carry at least 95% of a participant's transported mass. The median is **2** at the selected setting and ranges from **1 to 1,434** on the grid.
-- [Figure 5](results/UOT_ATT_sensi.png) shows the UOT-weighted difference in 1978 earnings. Each group's mean uses the corresponding marginal of the fitted transport plan. The red box marks the Table 1 selection.
+- [Figure 5](results/UOT_ATT_sensi.png) shows the UOT-weighted ATT estimates for 1978 earnings. The UOT estimate weights treated participants by their transported row masses. The experimental ATT estimate weights them equally. The red box marks the Table 1 selection.
 - The [grid CSV](results/converged_grid.csv) contains all 300 settings, weighted group means, estimates, transported mass, median 95% counts, optimality residuals, and the selected-row flag.
 
 The solver uses seven pooled standardized covariates, Euclidean distance divided by the largest cross-group distance, and uniform input weights within each group. It solves the KL transport problem using log-domain Sinkhorn updates or a damped Newton solve for the treated potentials, depending on the ratio of the penalties. For each cell it computes both marginal masses in log space and checks the first-order conditions of the full primal objective. It stops if the maximum absolute residual exceeds 1e-10. Earnings enter only after the weights are fitted.

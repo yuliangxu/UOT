@@ -9,8 +9,8 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
   `Major_revision.R` contains the Gaussian UOT examples and moment comparisons.
   `MR_*.R`, `One_Rep_*.R`, and `Subsampling_method.R` contain additional simulation workflows.
   `simulation/ET_round2/` contains the revised Gaussian UOT CLT experiment,
-  including a validated shard/merge runner and SLURM instructions for the
-  10,000-replication HPC study.
+  including SLURM instructions for the six-sample-size study with up to
+  100,000 replications per sample size and an independent reference batch.
 
 - [`Lalonde/`](Lalonde/README.md)
   Replicates Table 1 and Figures 4–5 with convergence-checked KL transport weights. `Lalonde.R` runs the full example and `UOT_sensi.R` regenerates the tuning grid and plots.
