@@ -80,13 +80,13 @@ parse_hpc_arguments <- function(args) {
     shard_id = as.integer(value_after_equals("--shard-id", NA_character_)),
     seed = as.integer(value_after_equals("--seed", "20260814")),
     shard_dir = value_after_equals(
-      "--shard-dir", "simulation/ET_round2/result/clt_shards"
+      "--shard-dir", "/cwork/yx306/UOT/out/clt-gaussian-10000/shards"
     ),
     output_dir = value_after_equals(
-      "--output-dir", "simulation/ET_round2/result"
+      "--output-dir", "/cwork/yx306/UOT/out/clt-gaussian-10000/result"
     ),
     plot_dir = value_after_equals(
-      "--plot-dir", "simulation/ET_round2/plot"
+      "--plot-dir", "/cwork/yx306/UOT/out/clt-gaussian-10000/plot"
     )
   )
 }

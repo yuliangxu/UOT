@@ -50,7 +50,7 @@ $$
 (-0.131862,-0.118713,0.132774,-0.150429)^\top.
 $$
 
-For each $n\in\{50,100,200,500\}$, we independently draw
+For each $n\in\{10,20,50,100,200,500\}$, we independently draw
 
 $$
 X_i^{(0)}\sim\mu_0,\quad i=1,\ldots,n,
@@ -69,7 +69,8 @@ Z_{ij}=\bigl(X_i^{(0)},X_j^{(1)}\bigr)\in\mathbb R^4.
 $$
 
 We compute the empirical UOT coupling $\widehat\gamma_n$ on these support
-points and use 2,000 replications for each $n$. For any fixed test function
+points. The replication counts for the original diagnostic suite and the
+high-precision covariance study are given below. For any fixed test function
 $f$, define its empirical and population coupling integrals by
 
 $$
@@ -219,23 +220,24 @@ Their population integrals are evaluated exactly under the Gaussian coupling.
 We also include $f(z)=1$, whose integral is the total transported mass.
 
 The theorem does not provide a closed-form covariance kernel for its limiting
-Gaussian process. We therefore generated a separate calibration experiment
-with 2,000 independent replications at $n_{\mathrm{ref}}=500$. Its sample
-covariance, $\widehat\Sigma_{\mathrm{ref}}$, is used as a large-sample Monte
-Carlo proxy for the covariance of the 197-dimensional fluctuation vector.
-Separately, the evaluation experiment contains 2,000 replications at every
-$n\in\{50,100,200,500\}$, including a distinct 2,000-run batch at $n=500$.
-The two batches use disjoint random-number streams.
+Gaussian process. The experiment therefore has two layers. The original
+diagnostic suite uses 2,000 evaluation replications at
+$n\in\{50,100,200,500\}$ and a separate 2,000-run reference batch at $n=500$.
+These runs produce the heatmaps, histograms, Q--Q plots, and reference
+correlation plot described below.
 
-Gaussian overlays, Q--Q standardizations, and the reference correlation
-matrix use only $\widehat\Sigma_{\mathrm{ref}}$. All evaluation heatmaps,
-histograms, Q--Q points, numerical summaries, and sample-size-specific
-covariances use the 2,000 evaluation replications. Thus, every covariance
-comparison uses 2,000 evaluation runs versus 2,000 independent reference
-runs. The reference remains a finite-$n$ Monte Carlo proxy, not the analytic
-covariance kernel of the limiting Gaussian process.
+The high-precision covariance study uses 100,000 evaluation replications at
+each $n\in\{10,20,50,100,200,500\}$ and an independent 100,000-run reference
+batch at $n=500$. Evaluation and reference batches use disjoint random-number
+streams. The reference covariance $\widehat\Sigma_{\mathrm{ref}}$ remains a
+finite-$n$ Monte Carlo proxy, not the analytic covariance kernel of the
+limiting Gaussian process.
 
 ## Interpretation of the plots
+
+Except for the high-precision covariance figure in the final subsection, the
+plots below use the original 2,000-run design with
+$n\in\{50,100,200,500\}$.
 
 ### Representative fluctuations
 
@@ -283,44 +285,58 @@ function at 49 locations.
 
 The red curves in the histograms are centered Gaussian densities whose
 variances come only from the independent 2,000-run $n=500$ reference batch.
-Overall,
-the histograms and Q--Q plots are broadly consistent with the Gaussian
-reference. The clearest small-sample departure occurs for total mass, which
-has a negative finite-sample bias and a heavier lower tail at $n=50$; this
-discrepancy diminishes as $n$ grows.
+Overall, the histograms and Q--Q plots are broadly consistent with the
+Gaussian reference. The clearest small-sample departure occurs for total
+mass, which has a negative finite-sample bias and a heavier lower tail at
+$n=50$; this discrepancy diminishes as $n$ grows.
 
 ### Covariance structure
 
 [`clt_gaussian_all_projections_reference_correlation.pdf`](plot/clt_gaussian_all_projections_reference_correlation.pdf)
-displays the correlation matrix estimated from the $n=500$ reference batch.
-The labeled blocks separate total mass and the four projection families. Its
-structured positive and negative bands show dependence both within and across
-projections, as expected for finite-dimensional evaluations of one Gaussian
-process.
+displays the correlation matrix estimated from the original 2,000-run
+$n=500$ reference batch. The labeled blocks separate total mass and the four
+projection families. Its structured positive and negative bands show
+dependence both within and across projections, as expected for
+finite-dimensional evaluations of one Gaussian process.
 
-[`clt_gaussian_all_projections_covariance_stabilization.pdf`](plot/clt_gaussian_all_projections_covariance_stabilization.pdf)
-compares the covariance at each $n$ with the independent reference covariance.
-The relative Frobenius discrepancies are $0.120$, $0.109$, $0.096$, and
-$0.122$ for $n=50,100,200,500$, respectively. The $n=500$ value compares two
-independent and equally sized batches from the same finite-sample law, so it
-provides a matched benchmark for Monte Carlo covariance-estimation
-variability. A Gaussian/Wishart plug-in calculation gives an expected
-same-law relative RMS discrepancy of approximately $0.110$ under the Gaussian
-approximation, comparable to the observed $n=500$ value. This plug-in value is
-a benchmark, not a confidence bound. The smaller-$n$ discrepancies are of the
-same order. Relative to the earlier 1,000-run calculation, the decrease is
-broadly consistent with the $1/\sqrt{2}$ scaling expected when Monte Carlo
-covariance-estimation error is a major component of the discrepancy.
-The minimum at $n=200$ should therefore not be interpreted as monotone
-covariance convergence; it can arise from covariance-estimation variability.
-These comparisons support covariance stability at the resolution of this
-experiment, but they do not establish convergence to the unknown analytic
-asymptotic covariance.
+The high-precision figure
+`clt_gaussian_n10_to_500_R100000_frobenius_distance_mc_band.pdf` compares each
+100,000-run covariance estimate with the independent 100,000-run reference.
+The relative Frobenius distance is
 
-Finally, the mean empirical transported mass approaches its population value:
-$0.5784$, $0.5839$, $0.5855$, and $0.5874$ for
-$n=50,100,200,500$, respectively, compared with $m_\gamma=0.5881$. Together,
-the centering, selected one-dimensional Gaussian diagnostics, and empirical
-covariance structure provide numerical support for the finite-dimensional
-Gaussian limit in Theorem 1; they are not a formal joint-normality test of the
-entire 197-dimensional vector.
+$$
+D_n=
+\frac{\lVert\widehat\Sigma_n-\widehat\Sigma_{\mathrm{ref}}\rVert_F}
+{\lVert\widehat\Sigma_{\mathrm{ref}}\rVert_F}.
+$$
+
+| $n$ | $D_n$ | Monte Carlo classification |
+|---:|---:|:---|
+| 10 | 0.1134 | Above band |
+| 20 | 0.0600 | Above band |
+| 50 | 0.0291 | Above band |
+| 100 | 0.0206 | Above band |
+| 200 | 0.0172 | Within band |
+| 500 | 0.0151 | Within band |
+
+The empirical 95% Monte Carlo band is $[0.0133,0.0186]$, with RMS benchmark
+$0.0158$. It is constructed from all pairwise covariance distances among 100
+independent $n=500$ blocks of size 2,000, rescaled by
+
+$$
+\sqrt{\frac{2000-1}{100000-1}}.
+$$
+
+Because the pairwise block distances are dependent, this band is a Monte
+Carlo diagnostic rather than a formal confidence interval. The monotone
+decrease in $D_n$ shows a clear sample-size effect through $n=100$. At
+$n=200$ and $n=500$, the remaining discrepancy is indistinguishable from
+Monte Carlo covariance-estimation error at this resolution.
+
+The same 100,000-run study gives mean transported masses $0.5475$, $0.5658$,
+$0.5783$, $0.5830$, $0.5854$, and $0.5870$ for
+$n=10,20,50,100,200,500$, respectively, approaching
+$m_\gamma=0.5881$. Together, the centering, Gaussian diagnostics, and
+high-precision covariance stabilization provide numerical support for the
+finite-dimensional Gaussian limit in Theorem 1; they do not constitute a
+formal joint-normality test of the full 197-dimensional vector.

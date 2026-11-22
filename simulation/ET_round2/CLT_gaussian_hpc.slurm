@@ -14,9 +14,10 @@ set -euo pipefail
 
 : "${SLURM_ARRAY_TASK_ID:?This file must run as a SLURM array job}"
 
-REPO_ROOT="${REPO_ROOT:-/hpc/home/yx306/UOT}"
+REPO_ROOT="${REPO_ROOT:-/hpc/home/yx306/OT/UOT}"
+R_BIN="${R_BIN:-/opt/apps/rhel9/R-4.4.3/bin}"
 VENV_PYTHON="${VENV_PYTHON:-/hpc/home/yx306/venvs/uot/bin/python}"
-CLT_RUN_ROOT="${CLT_RUN_ROOT:-/cwork/yx306/UOT/clt-gaussian-10000}"
+CLT_RUN_ROOT="${CLT_RUN_ROOT:-/cwork/yx306/UOT/out/clt-gaussian-10000}"
 CLT_SHARD_DIR="${CLT_SHARD_DIR:-${CLT_RUN_ROOT}/shards}"
 CLT_REPS="${CLT_REPS:-10000}"
 CLT_REP_START="${CLT_REP_START:-1}"
@@ -27,9 +28,18 @@ if (( SLURM_ARRAY_TASK_ID < 1 || SLURM_ARRAY_TASK_ID > CLT_NUM_SHARDS )); then
   exit 2
 fi
 
+case "$CLT_SHARD_DIR" in
+  /cwork/yx306/UOT/out/*) ;;
+  *)
+    echo "CLT_SHARD_DIR must be under /cwork/yx306/UOT/out: $CLT_SHARD_DIR" >&2
+    exit 2
+    ;;
+esac
+
 cd "$REPO_ROOT"
 mkdir -p "$CLT_SHARD_DIR"
 
+export PATH="$R_BIN:$PATH"
 export RETICULATE_PYTHON="$VENV_PYTHON"
 export PYTHONNOUSERSITE=1
 export OMP_NUM_THREADS=1
@@ -39,6 +49,7 @@ export VECLIB_MAXIMUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
 echo "Repository: $REPO_ROOT"
+echo "Rscript: $(command -v Rscript)"
 echo "Python: $RETICULATE_PYTHON"
 echo "Replications: $CLT_REP_START:$CLT_REPS"
 echo "Shard: $SLURM_ARRAY_TASK_ID/$CLT_NUM_SHARDS"
