@@ -7,6 +7,7 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
 - `simulation/`
   [Figure 1](simulation/ET_round2/figure1/) compares the normalized empirical and population Gaussian couplings using the same squared Euclidean cost. From the repository root, run `Rscript --vanilla simulation/ET_round2/MMD_heatmap.R` with MASS and ggplot2 to regenerate the 2,450 fits and both panels.
   [Figure 2](simulation/ET_round2/figure2/) shows raw matched mass beyond Euclidean distance 0.1 as both KL penalties decrease, alongside the bound from the proof of Proposition 3. Run `Rscript --vanilla simulation/MR_R1Q2_2.R` from the repository root to reproduce the figure and the 300 fit diagnostics.
+  [Figure 3](simulation/ET_round2/figure3/) includes the original 200 observations and the ranked pair IDs. Run `Rscript --vanilla simulation/figure3.R` from the repository root with R and ggplot2 to regenerate `plot/figure3/rho_top3.pdf` and `ranked_pairs.csv`. The three panels use the same sample, Euclidean costs divided by the largest cross-group distance, and fixed ε = 0.01, with ρ = 0.002, 0.01, and ∞ (balanced OT). The CSV reports both within-group indices and IDs from the sample file.
   `Major_revision.R` contains the Gaussian UOT examples and moment comparisons.
   `MR_*.R`, `One_Rep_*.R`, and `Subsampling_method.R` contain additional simulation workflows.
   `simulation/ET_round2/` contains the revised Gaussian UOT CLT experiment,
@@ -50,7 +51,7 @@ Change that line to match your local Python environment before running the code.
 
 - The LaLonde entry points download and verify the five NSW and PSID files from NBER on first use. Subsequent runs use the cached files in `Lalonde/data/`.
 - The Figure 6 driver reads `data/usa_00002.csv.gz` or an extract path supplied on the command line.
-- Some simulation scripts expect local saved objects such as `rng_state.rds` or output folders like `result/` and `plot/`. Create those if you want to reproduce those exact runs.
+- Some older simulation scripts expect output folders such as `result/` and `plot/` to exist.
 
 ## Typical entry points
 

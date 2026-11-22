@@ -1,107 +1,31 @@
+# Figure 3. Run simulation/figure3.R for the standalone PDF and ranked pairs.
+source("simulation/figure3.R", local = TRUE)
+figure3 <- fit_figure3()
+ranks <- draw_figure3(figure3)
 
-# One UOT matching example ------------------------------------------------
+# Objects used below by the original exploratory analyses.
+X <- figure3$x
+idx0 <- figure3$control
+idx1 <- figure3$treated
+n0 <- length(idx0)
+n1 <- length(idx1)
+n <- n0 + n1
+reg <- figure3$epsilon
+reg_m_kl2 <- reg_m_kl <- figure3$rho[1]
+reg_m_kl1 <- figure3$rho[2]
+ubG2 <- figure3$plans[[1]]
+ubG1 <- figure3$plans[[2]]
+otG <- figure3$plans[[3]]
+pair_indices <- as.matrix(ranks[c("treated_index", "control_index")])
+top_pair2 <- pair_indices[ranks$rho == reg_m_kl2, ]
+top_pair1 <- pair_indices[ranks$rho == reg_m_kl1, ]
+top_pair_ot <- pair_indices[is.infinite(ranks$rho), ]
 
-source("R/thresh_ot_func.R")
+# The original moment comparisons below use Python and draw a new sample.
 library(reticulate)
-use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
+use_python("~/Library/r-miniconda-arm64/bin/python", required = TRUE)
 source_python("./python/sinkhorn_unbalanced_tv.py")
-# Normal case -------------------------------------------------------------
-# rng_state <- .Random.seed
-# saveRDS(rng_state, "rng_state.rds")
-
-.Random.seed <- readRDS("rng_state.rds")
-# create 2D normal array
-d=2
-n_sim = 100
-n0 = n_sim
-n1 = n_sim
-n = n0+n1
-idx0 = sort(sample(1:n,n0))
-idx = rep(1,n)
-idx[idx0] = 0
-idx1 = which(idx == 1)
-# set.seed(2025)
-
-# ----------- generate sample  ----------- #
-
-# set input normal marginals
-a = c(-0.4,0.1) # mean 0
-b = c(0.5,-0.3) # mean 1
-
-A = matrix( c(0.7, -0.5,
-              -0.5,  1), nrow=2, ncol=2) # var 0
-
-B = matrix( c(1, -0.34,
-              -0.34,  0.7), nrow=2, ncol=2) # var 1
-
-X0 = MASS::mvrnorm(n0, mu=a, Sigma=A)
-X1 = MASS::mvrnorm(n1, mu=b, Sigma=B)
-X = matrix(NA,nrow = n, ncol = d)
-X[idx0,] = X0
-X[idx1,] = X1
-plot_cov(X,idx0,idx1,main="2d")
-
-
-
-
-# ----------- uniform marginal weight  ----------- #
-
-# uniform measure
-a1 = rep(1/n1,n1)
-a0 = rep(1/n0,n0)
-center0 = apply(X0, 2, mean)
-center1 = apply(X1, 2, mean)
-
-# distance matrix
-M = matrix(NA,n0,n1)
-for(i in 1:n0){
-  for(j in 1:n1){
-    M[i,j] = sqrt(sum((X0[i,] - X1[j,])^2))
-  }
-}
-M = M/max(M)
-M = t(M)
-
-# UOT estimator with uniform measure
-ot <- import("ot")
-reg_m_kl = 1e-2/5
-reg = 1e-2
-maxiter = 2000
-ubG = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl, div='kl',
-                             numItermax=as.integer(maxiter))
-
-otG = ot$sinkhorn(a1, a0, M, reg, numItermax=as.integer(maxiter))
-
-reg_m_kl2 = 1e-3
-ubG2 = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl, div='kl',
-                             numItermax=as.integer(maxiter))
-
-# ==== 1. Econ example: it's good to have unmatched observations (weight visualization) ======
-
-# for OT
 set.seed(3)
-reg_m_kl1 = 1e-2
-ubG1 = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl1, div='kl',
-                             numItermax=as.integer(maxiter))
-reg_m_kl2 = 1e-2/5 # rho
-ubG2 = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl2, div='kl',
-                             numItermax=as.integer(maxiter))
-
-sum(ubG1)
-sum(ubG2)
-sum(otG)
-
-table(ubG2 > 1e-2)
-table(ubG1 > 1e-2)
-
-cex = 1.2
-par(mfrow = c(1,3))
-top_pair2 = add_top_match(ubG2,X,idx0,idx1,1:3,main=paste("UOT: rho=",reg_m_kl2),cex = cex)
-top_pair1 = add_top_match(ubG1,X,idx0,idx1,1:3,main=paste("UOT: rho=",reg_m_kl1),cex = cex)
-top_pair_ot = add_top_match(otG,X,idx0,idx1,1:3,main="OT",cex = cex)
-par(mfrow = c(1,1))
-
-
 
 # ==== 2/1. Simulation: Estimator does not suffer from curse of dim as much compared to knn ======
 
