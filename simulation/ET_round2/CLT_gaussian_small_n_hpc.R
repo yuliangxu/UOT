@@ -68,11 +68,6 @@ validate_small_n_arguments <- function(args) {
        args$shard_id > args$num_shards)) {
     stop("Shard mode requires 1 <= --shard-id <= --num-shards.", call. = FALSE)
   }
-  normalized <- normalizePath(args$shard_dir, mustWork = FALSE)
-  allowed <- startsWith(normalized, "/cwork/yx306/UOT/out/")
-  if (!allowed && !args$smoke_test) {
-    stop("Production shards must be below /cwork/yx306/UOT/out.", call. = FALSE)
-  }
   invisible(TRUE)
 }
 

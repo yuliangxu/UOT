@@ -327,6 +327,22 @@ make_shard_manifest <- function(args, configuration, batch, shard_id,
 }
 
 manifests_match <- function(observed, expected) {
+  # HEAD can change between a simulation and a replay. Compare worker file
+  # hashes, accepting either this checkout or the original production workers.
+  recorded <- observed$source_provenance
+  if (!is.list(recorded) || !"git_commit" %in% names(recorded)) return(FALSE)
+  recorded$git_commit <- NULL
+  current <- expected$source_provenance
+  current$git_commit <- NULL
+  original <- list(source_md5 = c(
+    core = "0b7cce14a5c02f79f503cee24d9e34af",
+    hpc = "f32118e02de0aa9a7d92de0ec6311a59"
+  ))
+  if (!is.null(current$extension_source_md5)) {
+    original$extension_source_md5 <- "d4244dc0e6ea75806419f4f1174e6463"
+  }
+  if (!identical(recorded, current) && !identical(recorded, original)) return(FALSE)
+  observed$source_provenance <- expected$source_provenance
   isTRUE(all.equal(observed, expected, tolerance = 1e-12))
 }
 

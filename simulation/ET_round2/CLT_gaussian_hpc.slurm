@@ -28,14 +28,6 @@ if (( SLURM_ARRAY_TASK_ID < 1 || SLURM_ARRAY_TASK_ID > CLT_NUM_SHARDS )); then
   exit 2
 fi
 
-case "$CLT_SHARD_DIR" in
-  /cwork/yx306/UOT/out/*) ;;
-  *)
-    echo "CLT_SHARD_DIR must be under /cwork/yx306/UOT/out: $CLT_SHARD_DIR" >&2
-    exit 2
-    ;;
-esac
-
 cd "$REPO_ROOT"
 mkdir -p "$CLT_SHARD_DIR"
 

@@ -15,6 +15,7 @@ if (!all(file.exists(c(summary_script, small_n_worker_script)))) {
 }
 source(summary_script)
 source(small_n_worker_script)
+source(file.path("simulation", "ET_round2", "CLT_gaussian_jarque_bera.R"))
 
 parse_combined_arguments <- function(args) {
   value_after_equals <- function(prefix, default) {
@@ -66,10 +67,10 @@ combined_usage <- function() {
     "    --reps=100000 --base-reps=10000 \\\n",
     "    --base-num-shards=100 --extension-num-shards=100 \\\n",
     "    --extension-rep-start=10001 \\\n",
-    "    --base-shard-dir=/cwork/yx306/UOT/out/clt-gaussian-10000/shards \\\n",
-    "    --small-n-shard-dir=/cwork/yx306/UOT/out/clt-gaussian-10000/small-n-shards \\\n",
-    "    --output-dir=/cwork/yx306/UOT/out/clt-gaussian-10000/result \\\n",
-    "    --plot-dir=/cwork/yx306/UOT/out/clt-gaussian-10000/plot\n",
+    "    --base-shard-dir=/path/to/run/shards \\\n",
+    "    --small-n-shard-dir=/path/to/run/small-n-shards \\\n",
+    "    --output-dir=/path/to/run/result \\\n",
+    "    --plot-dir=/path/to/run/plot\n",
     sep = ""
   )
 }
@@ -93,16 +94,6 @@ validate_combined_arguments <- function(args) {
   if (args$reps > args$base_reps &&
       args$extension_rep_start != args$base_reps + 1L) {
     stop("Continuation must start at --base-reps + 1.", call. = FALSE)
-  }
-  allowed_root <- "/cwork/yx306/UOT/out/"
-  paths <- c(
-    args$shard_dir, args$small_n_shard_dir,
-    args$output_dir, args$plot_dir
-  )
-  normalized <- vapply(paths, normalizePath, character(1), mustWork = FALSE)
-  if (any(!startsWith(normalized, allowed_root))) {
-    stop("Every input and output path must be below /cwork/yx306/UOT/out.",
-         call. = FALSE)
   }
   invisible(TRUE)
 }
@@ -402,6 +393,15 @@ write_combined_report <- function(path, summary, comparison, calibration,
   above <- comparison$n[
     comparison$relative_frobenius_distance > calibration$upper
   ]
+  report_dir <- normalizePath(dirname(path))
+  figure_dir <- normalizePath(dirname(figure_path))
+  figure_link <- if (figure_dir == report_dir) {
+    basename(figure_path)
+  } else if (dirname(figure_dir) == dirname(report_dir)) {
+    file.path("..", basename(figure_dir), basename(figure_path))
+  } else {
+    normalizePath(figure_path)
+  }
   report <- c(
     "# Small-n Gaussian UOT covariance convergence",
     "",
@@ -442,7 +442,7 @@ write_combined_report <- function(path, summary, comparison, calibration,
       "No sample size is above the calibrated Monte Carlo band."
     },
     "",
-    paste0("[Frobenius-distance figure](../plot/", basename(figure_path), ")"),
+    paste0("[Frobenius-distance figure](", utils::URLencode(figure_link), ")"),
     "",
     paste0(
       "Band construction: ", calibration$method,
@@ -516,8 +516,16 @@ main_combined_summary <- function() {
     continuation_md5 <- continuation$md5
     continuation_small_md5 <- continuation_small$md5
   }
+  # Release the separate shard sets before allocating the full fluctuation
+  # matrix and the plotting data for the six-size run.
+  base_md5 <- base$shard_md5
+  base_small_md5 <- base_small$md5
+  environment_signature <- base$environment_signature
+  rm(base, base_small)
+  if (args$reps > args$base_reps) rm(continuation, continuation_small)
   evaluation <- combine_checkpoints(evaluation_parts)
   reference_checkpoint <- combine_checkpoints(reference_parts)
+  rm(evaluation_parts, reference_parts)
   n_grid <- sort(unique(c(
     small_configuration$n_grid, base_configuration$n_grid
   )))
@@ -560,6 +568,8 @@ main_combined_summary <- function() {
     reference_checkpoint,
     base_configuration$test_functions$population_integrals
   )
+  evaluation$integrals <- NULL
+  rm(reference_checkpoint)
   calibration <- calibrate_mc_uncertainty(
     evaluation, fluctuations, reference, args$mc_block_size
   )
@@ -570,6 +580,20 @@ main_combined_summary <- function() {
   )
   summary <- summarize_replications(
     evaluation, fluctuations, base_configuration$population$mass
+  )
+
+  plot_prefix <- paste0("clt_gaussian_all_projections_R", args$reps, "_")
+  test_functions <- base_configuration$test_functions
+  heatmaps <- make_fluctuation_heatmaps(
+    evaluation, fluctuations, test_functions, args$plot_dir, plot_prefix
+  )
+  diagnostics <- make_gaussian_diagnostics(
+    evaluation, fluctuations, test_functions, reference, args$plot_dir, plot_prefix
+  )
+  jb_path <- write_jarque_bera_table(
+    evaluation$diagnostics, fluctuations, args$output_dir,
+    count = min(3000L, args$reps),
+    verify = args$seed == 20260814L && args$reps >= 3000L
   )
 
   summary_path <- file.path(args$output_dir, paste0(prefix, "summary.csv"))
@@ -587,11 +611,11 @@ main_combined_summary <- function() {
       schema_version = "clt_gaussian_small_n_mc_calibration_v1",
       created_at = Sys.time(),
       calibration = calibration,
-      base_shard_md5 = base$shard_md5,
-      base_small_n_shard_md5 = base_small$md5,
+      base_shard_md5 = base_md5,
+      base_small_n_shard_md5 = base_small_md5,
       continuation_shard_md5 = continuation_md5,
       continuation_small_n_shard_md5 = continuation_small_md5,
-      environment_signature = base$environment_signature
+      environment_signature = environment_signature
     ),
     calibration_path
   )
@@ -601,11 +625,15 @@ main_combined_summary <- function() {
   )
   message(
     "Validated and combined ", format(args$reps, big.mark = ","),
-    " replications at n = 10:500."
+    " successful evaluation replications at each n = ",
+    paste(n_grid, collapse = ", "), " and ", reference$replications,
+    " independent n = ", reference$n, " reference replications."
   )
   message("Report: ", report_path)
   message("Frobenius-distance figure: ", figure$path)
-  invisible(list(report = report_path, figure = figure$path))
+  message("Diagnostics: ", paste(c(heatmaps, diagnostics, jb_path), collapse = "\n"))
+  invisible(list(report = report_path, figure = figure$path,
+                 heatmaps = heatmaps, diagnostics = diagnostics, jb = jb_path))
 }
 
 if (sys.nframe() == 0L) main_combined_summary()

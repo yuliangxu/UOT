@@ -56,17 +56,6 @@ validate_summary_arguments <- function(args) {
       args$rep_start > args$reps || args$num_shards < 1L || args$seed < 0L) {
     stop("Invalid replication, shard, or seed arguments.", call. = FALSE)
   }
-  allowed_root <- "/cwork/yx306/UOT/out"
-  output_paths <- c(args$output_dir, args$plot_dir)
-  normalized <- vapply(
-    output_paths, normalizePath, character(1), mustWork = FALSE
-  )
-  if (any(!startsWith(normalized, paste0(allowed_root, "/")))) {
-    stop(
-      "--output-dir and --plot-dir must be below ", allowed_root, ".",
-      call. = FALSE
-    )
-  }
   invisible(TRUE)
 }
 

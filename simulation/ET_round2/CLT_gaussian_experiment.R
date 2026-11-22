@@ -530,7 +530,12 @@ make_fluctuation_heatmaps <- function(checkpoint, fluctuations, test_functions,
     apply(fluctuations[indices, bump_columns, drop = FALSE], 2, stats::sd)
   }, numeric(length(bump_columns))))
   representative_values <- t(vapply(n_values, function(n) {
-    index <- which(checkpoint$diagnostics$n == n)[[1]]
+    index <- which(checkpoint$diagnostics$n == n &
+                     checkpoint$diagnostics$replication == 1L)
+    if (length(index) != 1L) {
+      stop("Expected exactly one evaluation replication ID 1 at n=", n,
+           call. = FALSE)
+    }
     fluctuations[index, bump_columns]
   }, numeric(length(bump_columns))))
 
@@ -571,7 +576,10 @@ make_fluctuation_heatmaps <- function(checkpoint, fluctuations, test_functions,
       plot <- plot + ggplot2::scale_fill_viridis_c(option = "C")
     }
     path <- file.path(plot_dir, paste0(prefix, filename))
-    ggplot2::ggsave(path, plot, width = 12.5, height = 11, units = "in")
+    ggplot2::ggsave(
+      path, plot, width = max(12.5, 2.3 * length(n_values)), height = 11,
+      units = "in"
+    )
     path
   }
 
@@ -638,6 +646,7 @@ make_gaussian_diagnostics <- function(checkpoint, fluctuations, test_functions,
   n_values <- sort(unique(checkpoint$diagnostics$n))
 
   histogram_pieces <- list()
+  overlay_pieces <- list()
   qq_pieces <- list()
   counter <- 0L
   for (n in n_values) {
@@ -649,8 +658,13 @@ make_gaussian_diagnostics <- function(checkpoint, fluctuations, test_functions,
       sd_reference <- reference_sd[[feature_index]]
       counter <- counter + 1L
       histogram_pieces[[counter]] <- data.frame(
-        n = n, feature = feature, value = values,
-        reference_sd = sd_reference
+        n = n, feature = feature, value = values
+      )
+      limits <- range(values)
+      grid <- seq(limits[[1]], limits[[2]], length.out = 200)
+      overlay_pieces[[counter]] <- data.frame(
+        n = n, feature = feature, x = grid,
+        density = stats::dnorm(grid, mean = 0, sd = sd_reference)
       )
       standardized <- sort(values / sd_reference)
       qq_pieces[[counter]] <- data.frame(
@@ -664,17 +678,8 @@ make_gaussian_diagnostics <- function(checkpoint, fluctuations, test_functions,
   histogram_data <- do.call(rbind, histogram_pieces)
   qq_data <- do.call(rbind, qq_pieces)
 
-  normal_overlay <- do.call(rbind, lapply(
-    split(histogram_data, interaction(histogram_data$n, histogram_data$feature)),
-    function(x) {
-      limits <- range(x$value)
-      grid <- seq(limits[[1]], limits[[2]], length.out = 200)
-      data.frame(
-        n = x$n[[1]], feature = x$feature[[1]], x = grid,
-        density = stats::dnorm(grid, mean = 0, sd = x$reference_sd[[1]])
-      )
-    }
-  ))
+  normal_overlay <- do.call(rbind, overlay_pieces)
+  rm(histogram_pieces, qq_pieces, overlay_pieces)
 
   histogram_plot <- ggplot2::ggplot(
     histogram_data, ggplot2::aes(x = value)
@@ -713,8 +718,13 @@ make_gaussian_diagnostics <- function(checkpoint, fluctuations, test_functions,
 
   histogram_path <- file.path(plot_dir, paste0(prefix, "histograms.pdf"))
   qq_path <- file.path(plot_dir, paste0(prefix, "qqplots.pdf"))
-  ggplot2::ggsave(histogram_path, histogram_plot, width = 12, height = 9, units = "in")
-  ggplot2::ggsave(qq_path, qq_plot, width = 12, height = 9, units = "in")
+  plot_width <- max(12, 2.3 * length(n_values))
+  ggplot2::ggsave(
+    histogram_path, histogram_plot, width = plot_width, height = 9, units = "in"
+  )
+  ggplot2::ggsave(
+    qq_path, qq_plot, width = plot_width, height = 9, units = "in"
+  )
   list(histograms = histogram_path, qqplots = qq_path)
 }
 
