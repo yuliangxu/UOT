@@ -60,12 +60,25 @@ if (!uot_only) {
   maha <- MatchIt::matchit(model, data = observed, method = "nearest", distance = "mahalanobis")
   stable <- sbw_att(observed, "treat", "re78", covars, bal_std = "target",
                     bal_tol = 0.02, bal_alg = FALSE)
-  # The published overlap comparison uses the raw treated mean and
-  # e*(1-e)-weighted controls, with e fitted by logistic regression.
   ps <- fitted(glm(model, data = observed, family = binomial()))
+  ps_treated <- ps[observed$treat == 1]
+  ps_control <- ps[observed$treat == 0]
+  # Table 1 retains the full treated mean. Appendix B also reports the
+  # average treatment effect in the overlap population (ATO).
+  overlap <- data.frame(
+    method = c("Overlap-weighted controls", "Standard overlap weights (ATO)"),
+    treated_weight = c("1", "1-e"),
+    control_weight = c("e*(1-e)", "e"),
+    treated_mean = c(mean(treated$re78), weighted.mean(treated$re78, 1 - ps_treated)),
+    control_mean = c(weighted.mean(controls$re78, ps_control * (1 - ps_control)),
+                     weighted.mean(controls$re78, ps_control))
+  )
+  overlap$estimate <- overlap$treated_mean - overlap$control_mean
+  stopifnot(all(is.finite(overlap$estimate)))
+  write.csv(overlap, file.path(output, "overlap_comparison.csv"), row.names = FALSE)
   estimates <- c(estimates, "PS Nearest" = matched_contrast(nearest),
                  CBPS = weighted_contrast(cbps$weights), Mahalanobis = matched_contrast(maha),
-                 SBW = stable$att, "Overlap Weights" = weighted_contrast(ps * (1 - ps)))
+                 SBW = stable$att, "Overlap-weighted controls" = overlap$estimate[1])
 }
 estimates <- c(estimates, UOT = selected$estimate, Experimental = experimental)
 stopifnot(all(is.finite(estimates)))

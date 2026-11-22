@@ -1,0 +1,3 @@
+"method","treated_weight","control_weight","treated_mean","control_mean","estimate"
+"Overlap-weighted controls","1","e*(1-e)",5976.35203272727,9222.49564913476,-3246.14361640749
+"Standard overlap weights (ATO)","1-e","e",6450.59377488574,8214.396863633,-1763.80308874726
