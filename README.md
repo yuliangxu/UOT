@@ -6,6 +6,7 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
 
 - `simulation/`
   [Figure 1](simulation/ET_round2/figure1/) compares the normalized empirical and population Gaussian couplings using the same squared Euclidean cost. From the repository root, run `Rscript --vanilla simulation/ET_round2/MMD_heatmap.R` with MASS and ggplot2 to regenerate the 2,450 fits and both panels.
+  [Figure 2](simulation/ET_round2/figure2/) shows raw matched mass beyond Euclidean distance 0.1 as both KL penalties decrease, alongside the bound from the proof of Proposition 3. Run `Rscript --vanilla simulation/MR_R1Q2_2.R` from the repository root to reproduce the figure and the 300 fit diagnostics.
   `Major_revision.R` contains the Gaussian UOT examples and moment comparisons.
   `MR_*.R`, `One_Rep_*.R`, and `Subsampling_method.R` contain additional simulation workflows.
   `simulation/ET_round2/` contains the revised Gaussian UOT CLT experiment,

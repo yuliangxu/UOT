@@ -1,112 +1,89 @@
-# One UOT matching example ------------------------------------------------
+#!/usr/bin/env Rscript
+# Run from the repository root: Rscript --vanilla simulation/MR_R1Q2_2.R
+source("R/uniform_kl_log_plan.R", local = TRUE)
+source("simulation/MR_functions.R", local = TRUE)
 
-source("R/thresh_ot_func.R")
-source("simulation/MR_functions.R")
-library(reticulate)
-use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
-source_python("./python/sinkhorn_unbalanced_tv.py")
-
-# curse of dim compared to other methods? --------------------------------------------
-
-d = 2
-true_params = get_marg_norm(d)
-n_sim = 100
-
-# set reg params
-reg_m_kl = 1e-2/5 # rho
-reg = 1e-2 # epsilon
-
-
-
-n_rep = 50
-rho_grid = c(0.001, 0.002, 0.0005, 0.01)
-
-n0 = n_sim
-n1 = n_sim
-n = n0+n1
-idx0 = sort(sample(1:n,n0))
-idx = rep(1,n)
-idx[idx0] = 0
-idx1 = which(idx == 1)
-
-result_df = expand.grid(rep = 1:n_rep, rho = c(Inf, rho_grid))
-result_df$num_within_radius = rep(NA,nrow(result_df))
-result_df$num_match_within_radius = rep(NA,nrow(result_df))
-result_df$proportion = rep(NA,nrow(result_df))
-
-ct = 0
-for(i_rep in 1:n_rep){
-  X0 = MASS::mvrnorm(n0, mu=true_params$a, Sigma=true_params$A)
-  X1 = MASS::mvrnorm(n1, mu=true_params$b, Sigma=true_params$B)
-  
-  
-  
-  
-  # closed form
-  true_UOT = true_2Dnorm_UOT_map(true_params$a,true_params$b,
-                                 true_params$A,true_params$B, 
-                                 reg=reg, reg_marg=reg_m_kl,d=d)
-  
-  M = compute_distance_matrix(X0, X1)
-  M = M/max(M)
-  M = t(M)
-  a1 = rep(1/n1,n1)
-  a0 = rep(1/n0,n0)
-  ot <- import("ot")
-  maxiter = 5000
-  
-  # balanced OT
-  otG = ot$sinkhorn(a1, a0, M, reg, numItermax=as.integer(maxiter))
-  
-  out_g = count_match_within_radius(otG,M, radius = 0.1, measure_lower=1e-2)
-  result_df$num_within_radius[result_df$rep == i_rep & result_df$rho == Inf] = out_g[1]
-  result_df$num_match_within_radius[result_df$rep == i_rep & result_df$rho == Inf] = out_g[2]
-  result_df$proportion[result_df$rep == i_rep & result_df$rho == Inf] = out_g[3]
-  
-  print(paste("simulation ",ct,"finished out of ",n_rep*length(rho_grid)))
-  for(reg_m_kl in rho_grid){
-    
-    print(paste("rho=",reg_m_kl,", i_rep = ",i_rep))
-    # UOT estimator with uniform measure
-    ubG = ot$sinkhorn_unbalanced(a1, a0, M, reg,reg_m_kl, div='kl',
-                                 numItermax=as.integer(maxiter))
-    out_ub = count_match_within_radius(ubG, M, radius = 0.1, measure_lower=1e-2)
-    
-    result_df$num_within_radius[result_df$rep == i_rep & result_df$rho == reg_m_kl] = out_ub[1]
-    result_df$num_match_within_radius[result_df$rep == i_rep & result_df$rho == reg_m_kl] = out_ub[2]
-    result_df$proportion[result_df$rep == i_rep & result_df$rho == reg_m_kl] = out_ub[3]
-    
-    ct = ct+1
-  }
+# Strict inequality implements "farther than the radius". Evaluate the raw
+# mass in log space so small fitted entries are included in the sum.
+log_mass_beyond <- function(log_plan, distance, radius) {
+  far <- log_plan[distance > radius]
+  if (!length(far)) return(-Inf)
+  peak <- max(far)
+  peak + log(sum(exp(far - peak)))
 }
 
-head(result_df)
+simulate_figure2 <- function() {
+  params <- get_marg_norm(2)
+  n <- 100L
+  radius <- 0.1
+  penalties <- c(0.1, 0.05, 0.02, 0.01, 0.005, 0.002)
+  draws <- lapply(seq_len(50L), function(replication) {
+    seed <- 20261121L + replication
+    set.seed(seed)
+    x <- MASS::mvrnorm(n, params$a, params$A)
+    y <- MASS::mvrnorm(n, params$b, params$B)
+    squared <- outer(rowSums(x*x), rowSums(y*y), "+") - 2 * tcrossprod(x, y)
+    distance <- sqrt(pmax(squared, 0))
+    settings <- lapply(penalties, function(t) {
+      fit <- uniform_kl_log_plan(distance, epsilon = t, rho = t)
+      log_far <- log_mass_beyond(fit$log_plan, distance, radius)
+      log_bound <- -radius / (t + 2*t)
+      if (log_far > min(log_bound, fit$log_mass) + 1e-10)
+        stop(sprintf("Off-radius mass check failed at seed %d, epsilon=rho=%g", seed, t))
+      data.frame(replication, seed, epsilon = t, rho = t, radius,
+                 off_radius_mass = exp(log_far), total_mass = exp(fit$log_mass),
+                 upper_bound = exp(log_bound), log_off_radius_mass = log_far,
+                 log_total_mass = fit$log_mass, log_upper_bound = log_bound,
+                 max_abs_foc = fit$max_abs_foc, iterations = fit$iterations)
+    })
+    do.call(rbind, settings)
+  })
+  do.call(rbind, draws)
+}
 
-# analyze -----------------------------------------------------------------
+summarize_figure2 <- function(draws) {
+  settings <- lapply(unique(draws$epsilon), function(t) {
+    rows <- draws[draws$epsilon == t, ]
+    q <- unname(quantile(rows$off_radius_mass, c(0.25, 0.5, 0.75)))
+    data.frame(epsilon = t, rho = rows$rho[1], radius = rows$radius[1],
+               replications = nrow(rows), q25 = q[1], median = q[2], q75 = q[3],
+               upper_bound = rows$upper_bound[1], median_total_mass = median(rows$total_mass))
+  })
+  do.call(rbind, settings)
+}
 
+plot_figure2 <- function(summary) {
+  library(ggplot2)
+  ggplot(summary, aes(epsilon, group = 1)) +
+    geom_line(aes(y = upper_bound, linetype = "Upper bound"), linewidth = 0.6) +
+    geom_line(aes(y = median, linetype = "Median"), linewidth = 0.6) +
+    geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.045, linewidth = 0.5) +
+    geom_point(aes(y = median), size = 1.7) +
+    scale_x_continuous(transform = scales::transform_compose("log10", "reverse"),
+                       breaks = summary$epsilon, labels = as.character(summary$epsilon)) +
+    scale_linetype_manual(values = c("Median" = "solid", "Upper bound" = "dashed"),
+                          breaks = c("Median", "Upper bound"), name = NULL) +
+    expand_limits(y = c(1e-10, 1)) +
+    scale_y_log10(breaks = 10^seq(0, -10, by = -2),
+                  labels = scales::label_log()) +
+    labs(x = expression("Joint penalty  " * epsilon == rho),
+         y = "Matched mass beyond distance 0.1") +
+    theme_minimal(base_size = 13) +
+    theme(legend.position = "top", panel.grid.minor = element_blank())
+}
 
-# create a plot
-library(ggplot2)
-library(dplyr)
-summary_df <- result_df %>%
-  group_by(rho) %>%
-  summarize(
-    mean_prop = median(proportion, na.rm = TRUE),
-    lower = quantile(proportion, 0.25, na.rm = TRUE),
-    upper = quantile(proportion, 0.75, na.rm = TRUE)
-  )
-
-summary_df$rho = as.factor(summary_df$rho)
-
-summary_df
-
-ggplot(summary_df, aes(x = rho, y = mean_prop)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  labs(
-    title = "Proportion of matched pairs within radius 0.1, with 25% and 75% quantiles bars, over 50 replications",
-    x = "rho",
-    y = "Proportion of matched pairs"
-  ) +
-  theme_minimal()
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly = TRUE)
+  if (length(args) > 1L) stop("Usage: Rscript simulation/MR_R1Q2_2.R [output-directory]")
+  out <- if (length(args)) args[[1L]] else "simulation/ET_round2/figure2"
+  draws <- simulate_figure2()
+  stats <- summarize_figure2(draws)
+  stopifnot(nrow(draws) == 300L, nrow(stats) == 6L, all(stats$replications == 50L))
+  if (!dir.exists(out) && !dir.create(out, recursive = TRUE)) stop("Cannot create ", out)
+  write.csv(draws, file.path(out, "replications.csv"), row.names = FALSE)
+  write.csv(stats, file.path(out, "summary.csv"), row.names = FALSE)
+  ggplot2::ggsave(file.path(out, "rho.pdf"), plot_figure2(stats), width = 6.8,
+                  height = 3.6, units = "in", device = grDevices::pdf, useDingbats = FALSE)
+  message(sprintf("Saved results for %d fits. Maximum absolute residual %.3g.",
+                  nrow(draws), max(draws$max_abs_foc)))
+}
