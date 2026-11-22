@@ -1,14 +1,12 @@
 library(dplyr)
-library(fastDummies)
-library(progress)
 library(tibble)
-library(matrixStats)
+source("ACS/acs_kl_solver.R")
 
 boot_Gbin_summary <- function(reg, reg_m_kl,
                               B, base_seed, n_pairs,
                               male_df, female_df,
                               var1d, breaks, K,
-                              M_bin, ot) {
+                              M_bin, ot = NULL) {
   Gb_mat <- matrix(NA_real_, nrow = B, ncol = K * K)
   pb <- txtProgressBar(min = 0, max = B, style = 3)
   
@@ -34,24 +32,21 @@ boot_Gbin_summary <- function(reg, reg_m_kl,
     if (!is.null(tmp1)) a1_bin[as.integer(names(tmp1))] <- as.numeric(tmp1)
     if (!is.null(tmp0)) a0_bin[as.integer(names(tmp0))] <- as.numeric(tmp0)
     
-    if (sum(a1_bin) == 0 || sum(a0_bin) == 0) next
+    if (sum(a1_bin) == 0 || sum(a0_bin) == 0) stop("Empty marginal in ACS bootstrap.")
     a1_bin <- a1_bin / sum(a1_bin)
     a0_bin <- a0_bin / sum(a0_bin)
     
-    G_bin <- ot$sinkhorn_unbalanced(a1_bin, a0_bin, M_bin, reg, reg_m_kl, div = "kl")
+    G_bin <- acs_kl_plan(a1_bin, a0_bin, M_bin, reg, reg_m_kl)
     Gb_mat[b, ] <- as.numeric(G_bin)
   }
   close(pb)
   
-  # drop failed
-  keep <- which(rowSums(is.na(Gb_mat)) == 0)
-  Gb_mat <- Gb_mat[keep, , drop = FALSE]
-  if (nrow(Gb_mat) < 5) stop("Too few successful bootstrap reps.")
+  stopifnot(all(is.finite(Gb_mat)))
   
   # summaries (fast)
   G_mean <- colMeans(Gb_mat)
-  G_q025 <- matrixStats::colQuantiles(Gb_mat, probs = 0.025)
-  G_q975 <- matrixStats::colQuantiles(Gb_mat, probs = 0.975)
+  G_q025 <- apply(Gb_mat, 2L, stats::quantile, probs = 0.025)
+  G_q975 <- apply(Gb_mat, 2L, stats::quantile, probs = 0.975)
   
   list(mean = G_mean, q025 = G_q025, q975 = G_q975, B_eff = nrow(Gb_mat))
 }
@@ -224,7 +219,7 @@ one_boot_ubG3 <- function(seed) {
   M <- M / max(M)
   
   ## unbalanced sinkhorn
-  ubG3 <- ot$sinkhorn_unbalanced(a1, a0, M, reg, reg_m_kl, div = "kl")
+  ubG3 <- acs_kl_plan(a1, a0, M, reg, reg_m_kl)
   ubG3 <- ubG3 / sum(ubG3)
   
   ## make sure it's a numeric R matrix (reticulate sometimes returns numpy arrays)

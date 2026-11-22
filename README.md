@@ -15,11 +15,8 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
 - [`Lalonde/`](Lalonde/README.md)
   Replicates Table 1 and Figures 4–5 with convergence-checked KL transport weights. `Lalonde.R` runs the full example and `UOT_sensi.R` regenerates the tuning grid and plots.
 
-- `ACS/`
-  ACS preprocessing and bootstrap experiments for spouse-pair matching.
-  `ACS1_preprocess_data.R` reads ACS microdata, builds spouse pairs, and runs one bootstrap/UOT pipeline.
-  `ACS2_bootstrap.R` contains the bootstrap workflow used after preprocessing.
-  `ACS_help.R` provides helper utilities for ACS data cleaning and pair construction.
+- [`ACS/`](ACS/README.md)
+  Reproduces Figure 6 from paired ages in the 2024 ACS extract. The driver checks convergence of each product-reference KL fit and saves the cell summaries and fit diagnostics.
 
 - `R/`
   Shared R utilities for transport calculations, plotting, matching summaries, and analytic examples.
@@ -51,7 +48,7 @@ Change that line to match your local Python environment before running the code.
 ## Data inputs
 
 - The LaLonde entry points download and verify the five NSW and PSID files from NBER on first use. Subsequent runs use the cached files in `Lalonde/data/`.
-- `ACS/ACS1_preprocess_data.R` expects ACS microdata under `./data/`, currently reading `./data/usa_00002.csv.gz`.
+- The Figure 6 driver reads `data/usa_00002.csv.gz` or an extract path supplied on the command line.
 - Some simulation scripts expect local saved objects such as `rng_state.rds` or output folders like `result/` and `plot/`. Create those if you want to reproduce those exact runs.
 
 ## Typical entry points
@@ -61,7 +58,7 @@ Run these from the repository root.
 ```bash
 Rscript Lalonde/Lalonde.R
 Rscript Lalonde/UOT_sensi.R
-Rscript ACS/ACS1_preprocess_data.R
+Rscript --vanilla ACS/figure6.R
 Rscript simulation/Major_revision.R
 ```
 

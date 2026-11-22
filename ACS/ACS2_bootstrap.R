@@ -1,3 +1,11 @@
+# The command-line entry point builds the manuscript figure in a fresh R session.
+# Sourcing this file after ACS1_preprocess_data.R retains the exploratory plots below.
+if (sys.nframe() == 0L && !interactive()) {
+  source("ACS/figure6.R")
+  run_figure6()
+  quit(save = "no")
+}
+
 B = 50
 base_seed = 123
 n_pairs = 1000
@@ -47,20 +55,19 @@ for (b in 1:B) {
   if (!is.null(tmp0)) a0_bin[as.integer(names(tmp0))] <- as.numeric(tmp0)
   
   # normalize to distributions
-  if (sum(a1_bin) == 0 || sum(a0_bin) == 0) next
+  if (sum(a1_bin) == 0 || sum(a0_bin) == 0) stop("Empty marginal in ACS bootstrap.")
   a1_bin <- a1_bin / sum(a1_bin)
   a0_bin <- a0_bin / sum(a0_bin)
   
   # OT on bins -> K x K plan
-  G_bin <- ot$sinkhorn_unbalanced(a1_bin, a0_bin, M_bin, reg, reg_m_kl, div = "kl")
+  G_bin <- acs_kl_plan(a1_bin, a0_bin, M_bin, reg, reg_m_kl)
   
   # store vectorized
   Gb_mat[b, ] <- as.numeric(G_bin)
 }
 
-# drop any failed reps
-keep <- which(rowSums(is.na(Gb_mat)) == 0)
-Gb_mat <- Gb_mat[keep, , drop = FALSE]
+# All requested replicates must pass.
+stopifnot(all(is.finite(Gb_mat)))
 B_eff <- nrow(Gb_mat)
 B_eff
 
@@ -70,6 +77,9 @@ B_eff
 # 3 plots
 library(ggplot2)
 
+G_mean <- colMeans(Gb_mat)
+G_q025 <- apply(Gb_mat, 2L, quantile, probs = .025)
+G_q975 <- apply(Gb_mat, 2L, quantile, probs = .975)
 df <- expand.grid(i=1:K, j=1:K)
 df$Mean <- as.vector(G_mean)
 df$`2.5%` <- as.vector(G_q025)
@@ -98,7 +108,7 @@ scores <- pca$x  # B_eff x 3 matrix of PC scores
 
 par(mfrow = c(3, 2))
 for (r in 1:3) {
-  z <- sqrt(n) * scores[, r]  # scaling
+  z <- sqrt(n_pairs) * scores[, r]  # scaling
   qqnorm(z, main = sprintf("QQ: sqrt(n)*PC%d score", r)); qqline(z)
   hist(z, breaks = 30, main = sprintf("Hist: sqrt(n)*PC%d score", r),
        xlab = "value")
@@ -132,7 +142,7 @@ for (g in 1:nrow(grid)) {
     B = B, base_seed = base_seed, n_pairs = n_pairs,
     male_df = male_df, female_df = female_df,
     var1d = var1d, breaks = breaks, K = K,
-    M_bin = M_bin, ot = ot
+    M_bin = M_bin
   )
   
   # build KxK matrices

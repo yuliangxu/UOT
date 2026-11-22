@@ -2,28 +2,6 @@ source("./ACS/ACS_help.R")
 batch_path = "./data"
 seed_i = 1 # change this for each batch
 
-# # use that env
-# # Sys.setenv(RETICULATE_PYTHON = "/hpc/home/yx306/.virtualenvs/r-venv/bin/python")
-# # use_virtualenv("r-venv", required = TRUE)
-# library(reticulate)
-# 
-# # reticulate::use_python("/usr/bin/python3", required = TRUE)
-# # reticulate::py_config()
-# source("./R/thresh_ot_func.R")
-# # use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
-# # virtualenv_create("r-venv", python = "/usr/bin/python3")
-# # virtualenv_install("r-venv", packages = c("POT"))
-# 
-library(reticulate)
-source("./R/thresh_ot_func.R")
-use_python("~/Library/r-miniconda-arm64/bin/python", required = T) # choose your own python path
-source_python("./python/sinkhorn_unbalanced_tv.py")
-# UOT with reg = 0.01
-ot <- import("ot")
-
-
-source_python("./python/sinkhorn_unbalanced_tv.py")
-
 # 1) read and preprocess data --------------------------------------------------
 df <- read.csv(gzfile("./data/usa_00002.csv.gz"))
 
@@ -117,7 +95,7 @@ M_bin <- M_bin / max(M_bin)
 reg_m_kl <- 10
 reg      <- 1e-2
 
-G_bin <- ot$sinkhorn_unbalanced(a1_bin, a0_bin, M_bin, reg, reg_m_kl, div = "kl")
+G_bin <- acs_kl_plan(a1_bin, a0_bin, M_bin, reg, reg_m_kl)
 
 # View(G_bin)
 library(ggplot2)
