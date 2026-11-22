@@ -6,3 +6,6 @@ result/
 plot/
 data/
 rng_state.rds
+
+__pycache__/
+.venv/

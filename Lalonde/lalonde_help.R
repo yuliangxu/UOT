@@ -486,7 +486,7 @@ sbw_att <- function(dat, ind, out, covars, bal_tol = 0.02, bal_alg = FALSE,
     # bal_gri, bal_sam keep defaults
   )
   
-  fit <- sbw(
+  fit <- sbw::sbw(
     dat = dat,
     ind = ind,
     out = out,
@@ -498,7 +498,7 @@ sbw_att <- function(dat, ind, out, covars, bal_tol = 0.02, bal_alg = FALSE,
   )
   
   ## Preferred: use package's estimator
-  est <- try(estimate(fit), silent = TRUE)
+  est <- try(sbw::estimate(fit), silent = TRUE)
   att_pkg <- if (!inherits(est, "try-error")) {
     if (!is.null(est$att)) est$att else if (!is.null(est$effects$att)) est$effects$att else NA_real_
   } else NA_real_

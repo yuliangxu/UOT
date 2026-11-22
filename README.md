@@ -12,11 +12,8 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
   including a validated shard/merge runner and SLURM instructions for the
   10,000-replication HPC study.
 
-- `Lalonde/`
-  Empirical treatment-effect scripts based on the Lalonde / NSW / PSID data.
-  `Lalonde.R` runs the main UOT analysis and benchmark comparisons.
-  `UOT_sensi.R` performs a grid search over UOT tuning parameters.
-  `lalonde_help.R` contains helper functions for loading data and evaluating matches.
+- [`Lalonde/`](Lalonde/README.md)
+  Replicates Table 1 and Figures 4–5 with convergence-checked KL transport weights. `Lalonde.R` runs the full example and `UOT_sensi.R` regenerates the tuning grid and plots.
 
 - `ACS/`
   ACS preprocessing and bootstrap experiments for spouse-pair matching.
@@ -37,6 +34,8 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
 
 ## Requirements
 
+For the LaLonde example, follow its [setup and run instructions](Lalonde/README.md). The remaining R/Python workflows use the following tools.
+
 - R with packages used by the scripts, including `reticulate`, `ggplot2`, `dplyr`, `cobalt`, `sandwich`, and `lmtest`
 - Python accessible from `reticulate`
 - The Python OT package `POT` available in that Python environment
@@ -51,7 +50,7 @@ Change that line to match your local Python environment before running the code.
 
 ## Data inputs
 
-- `Lalonde/Lalonde.R` and `Lalonde/UOT_sensi.R` download the NSW and PSID files directly from the Dehejia-Wahba / NBER source.
+- The LaLonde entry points download and verify the five NSW and PSID files from NBER on first use. Subsequent runs use the cached files in `Lalonde/data/`.
 - `ACS/ACS1_preprocess_data.R` expects ACS microdata under `./data/`, currently reading `./data/usa_00002.csv.gz`.
 - Some simulation scripts expect local saved objects such as `rng_state.rds` or output folders like `result/` and `plot/`. Create those if you want to reproduce those exact runs.
 
