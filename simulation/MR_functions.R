@@ -122,7 +122,8 @@ closedform_MMD = function(X,X_weight,mu,Sigma){
   
   
   # E_YY
-  E_YY = 1.0/sqrt(det(Sigma/joint_d + 0.5*H))
+  yy_cov <- diag(joint_d) + 4 * Sigma / joint_d
+  E_YY <- exp(-sum(log(diag(chol(yy_cov)))))
   
   # Compute MMD
   MMD <- E_XX - 2 * E_XY  + E_YY 
