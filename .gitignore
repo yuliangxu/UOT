@@ -9,3 +9,7 @@ rng_state.rds
 
 __pycache__/
 .venv/
+
+# Resume files for the Figure 1 simulation
+simulation/ET_round2/figure1/*_checkpoint.rds
+simulation/ET_round2/figure1/*_metadata.rds

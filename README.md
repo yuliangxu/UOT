@@ -5,7 +5,7 @@ Code for simulation studies and empirical examples around unbalanced optimal tra
 ## Repository layout
 
 - `simulation/`
-  Main synthetic experiments and revision scripts.
+  [Figure 1](simulation/ET_round2/figure1/) compares the normalized empirical and population Gaussian couplings using the same squared Euclidean cost. From the repository root, run `Rscript --vanilla simulation/ET_round2/MMD_heatmap.R` with MASS and ggplot2 to regenerate the 2,450 fits and both panels.
   `Major_revision.R` contains the Gaussian UOT examples and moment comparisons.
   `MR_*.R`, `One_Rep_*.R`, and `Subsampling_method.R` contain additional simulation workflows.
   `simulation/ET_round2/` contains the revised Gaussian UOT CLT experiment,

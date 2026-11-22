@@ -1,4 +1,5 @@
-# reproducible code for Figure 1 in ET submission
+# Earlier ET simulation design. For the current manuscript Figure 1, run
+# Rscript --vanilla simulation/ET_round2/MMD_heatmap.R from the repository root.
 
 
 # One UOT matching example ------------------------------------------------
