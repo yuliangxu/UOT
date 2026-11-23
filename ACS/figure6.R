@@ -17,11 +17,11 @@ acs_couple_ages <- function(path) {
   people <- people[!is.na(people$SPLOC) & people$SPLOC > 0 & people$SEX %in% 1:2, ]
   if (anyNA(people[c("SERIAL", "PERNUM")])) stop("Missing household or person identifier.")
   id <- with(people, paste(SERIAL, pmin(PERNUM, SPLOC), pmax(PERNUM, SPLOC), sep = "_"))
-  # Keep exactly one male and one female for a pair, retaining the published exclusion.
+  # Keep linked pairs with two records, one for each spouse.
   ord <- order(id, method = "radix")
   groups <- rle(id[ord])
   ends <- cumsum(groups$lengths)
-  last <- ends[groups$lengths == 2L & groups$values != "37178_4_5"]
+  last <- ends[groups$lengths == 2L]
   first_row <- ord[last - 1L]
   last_row <- ord[last]
   opposite <- people$SEX[first_row] != people$SEX[last_row]

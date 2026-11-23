@@ -18,10 +18,6 @@ dim(male_df); dim(female_df)   # same number of rows (couples), numeric matrices
 head(male_df); head(female_df) 
 # remove YEAR: all 2024 data
 male_df$YEAR = NULL; female_df$YEAR = NULL
-# remove suspicious data
-bad_id <- "37178_4_5"
-male_df   <- male_df   %>% dplyr::filter(couple_id != bad_id)
-female_df <- female_df %>% dplyr::filter(couple_id != bad_id)
 rm(df, couple_df) # to save memory
 
 # ---- choose one covariate for 1D OT / binning ----
