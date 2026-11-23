@@ -7,12 +7,14 @@ import argparse
 import csv
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 from scipy.linalg import solve
 from scipy.special import logsumexp
-from inputs import grids, load_inputs, prepare_inputs
+from balance import selected_diagnostics
+from inputs import grids, load_inputs, load_samples, prepare_inputs
 
 HERE = Path(__file__).resolve().parent
 TOL = 1e-10
@@ -95,7 +97,7 @@ def median_controls_95(log_plan, log_rows):
     return np.median(controls_95)
 
 
-def certify(cost, f, eps, rho, a, b, treated, controls):
+def certify(cost, f, eps, rho, a, b, treated, controls, *, include_weights=False):
     log_a, log_b = np.log(a), np.log(b)
     g = control_potential(cost, f, eps, rho, log_a)
     log_plan = log_a[:, None] + log_b + (f[:, None] + g - cost) / eps
@@ -108,14 +110,19 @@ def certify(cost, f, eps, rho, a, b, treated, controls):
     if not np.isfinite(residual) or residual > TOL:
         raise RuntimeError(f"First-order residual {residual} at {eps=}, {rho=}")
     log_mass = logsumexp(log_rows)
-    treated_mean = np.exp(log_rows - log_mass) @ treated
-    control_mean = np.exp(log_cols - log_mass) @ controls
-    return dict(estimate=treated_mean-control_mean, treated_mean=treated_mean,
-                control_mean=control_mean, transport_mass=np.exp(log_mass), max_abs_foc=residual,
-                median_controls_95=median_controls_95(log_plan, log_rows))
+    treated_weights = np.exp(log_rows - log_mass)
+    control_weights = np.exp(log_cols - log_mass)
+    treated_mean = treated_weights @ treated
+    control_mean = control_weights @ controls
+    stats = dict(estimate=treated_mean-control_mean, treated_mean=treated_mean,
+                 control_mean=control_mean, transport_mass=np.exp(log_mass), max_abs_foc=residual,
+                 median_controls_95=median_controls_95(log_plan, log_rows))
+    if include_weights:
+        stats["marginal_weights"] = (treated_weights, control_weights)
+    return stats
 
 
-def solve_row(task):
+def solve_row(task, *, include_weights=False):
     rho, eps_values = task
     cost, a, b, yt, yc, benchmark = load_inputs()
     log_a, log_b = np.log(a), np.log(b)
@@ -128,9 +135,10 @@ def solve_row(task):
         else:
             f, iterations = newton(cost, f, eps, rho, a, b)
             method = "semi_dual_newton"
-        stats = certify(cost, f, eps, rho, a, b, yt, yc)
-        records.append(dict(epsilon=eps, rho=rho, **stats,
-                            experimental_benchmark=benchmark, method=method, iterations=iterations))
+        stats = certify(cost, f, eps, rho, a, b, yt, yc, include_weights=include_weights)
+        record = dict(epsilon=eps, rho=rho, **stats, experimental_benchmark=benchmark,
+                      method=method, iterations=iterations)
+        records.append(record)
     return records
 
 
@@ -140,21 +148,31 @@ def run(jobs):
     tasks = [(rho, epsilons) for rho in rhos]
     rows = []
     with ProcessPoolExecutor(max_workers=jobs) as pool:
-        for records in pool.map(solve_row, tasks):
+        for records in pool.map(partial(solve_row, include_weights=True), tasks):
             rows.extend(records)
             print(f"Certified {len(rows)}/{len(epsilons) * len(rhos)} estimates", flush=True)
     rows.sort(key=lambda row: (row["epsilon"], row["rho"]))
-    selected = min(rows,
-                   key=lambda r: abs(r["estimate"] - r["experimental_benchmark"]))
+    selected = min(rows, key=lambda row: abs(row["estimate"] - row["experimental_benchmark"]))
+    weights = selected["marginal_weights"]
     for row in rows:
+        del row["marginal_weights"]
         row["is_selected_table1"] = int(row is selected)
-    output = HERE / "results" / "converged_grid.csv"
-    output.parent.mkdir(exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=output.parent, newline="", delete=False) as stream:
-        writer = csv.DictWriter(stream, fieldnames=rows[0].keys(), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    Path(stream.name).replace(output)
+    treated, controls, _ = load_samples()
+    balance, concentration, latex_table = selected_diagnostics(treated, controls, weights, selected)
+    output = HERE / "results"
+    output.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output) as tmp:
+        staging = Path(tmp)
+        for filename, records in (("converged_grid.csv", rows),
+                                  ("selected_balance.csv", balance),
+                                  ("selected_weight_summary.csv", concentration)):
+            with (staging / filename).open("w", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=records[0].keys(), lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(records)
+        (staging / "selected_balance_table.tex").write_text(latex_table, encoding="utf-8")
+        for path in staging.iterdir():
+            path.replace(output / path.name)
     print(f"Selected UOT contrast: {selected['estimate']:.2f} at "
           f"epsilon={selected['epsilon']}, rho={selected['rho']}.")
 

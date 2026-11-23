@@ -46,7 +46,7 @@ def prepare_inputs():
         verify(target, expected)
 
 
-def load_inputs():
+def load_samples():
     treated = np.loadtxt(DATA / "nsw_treated.txt")
     randomized_controls = np.loadtxt(DATA / "nsw_control.txt")
     psid = np.vstack([
@@ -54,12 +54,17 @@ def load_inputs():
         ("psid_controls.txt", "psid2_controls.txt", "psid3_controls.txt")
     ])
     controls = np.delete(psid, 7, axis=1)  # NSW files omit re74
+    benchmark = treated[:, -1].mean() - randomized_controls[:, -1].mean()
+    return treated, controls, benchmark
+
+
+def load_inputs():
+    treated, controls, benchmark = load_samples()
     n, m = len(treated), len(controls)
     predictors = np.vstack([treated[:, 1:-1], controls[:, 1:-1]])
     predictors = (predictors - predictors.mean(axis=0)) / predictors.std(axis=0, ddof=1)
     cost = cdist(predictors[:n], predictors[n:], metric="euclidean")
     cost /= cost.max()
-    benchmark = treated[:, -1].mean() - randomized_controls[:, -1].mean()
     return cost, np.full(n, 1/n), np.full(m, 1/m), treated[:, -1], controls[:, -1], benchmark
 
 
